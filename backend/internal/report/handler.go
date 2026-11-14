@@ -29,6 +29,25 @@ func (h *Handler) Dashboard(c *gin.Context) {
 	httpx.OK(c, out)
 }
 
+func (h *Handler) RecentMovements(c *gin.Context) {
+	p, perr := httpx.ParsePagination(c)
+	if perr != nil {
+		httpx.WriteError(c, perr)
+		return
+	}
+	id := httpx.MustIdentity(c)
+	var departmentID *uuid.UUID
+	if id.Role == user.RoleDepartmentUser {
+		departmentID = id.DepartmentID
+	}
+	rows, total, err := h.svc.RecentMovements(c.Request.Context(), departmentID, p.Page, p.PageSize)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	httpx.List(c, rows, httpx.NewMeta(p, total))
+}
+
 func (h *Handler) Inventory(c *gin.Context) {
 	f, err := parseFilter(c)
 	if err != nil {
@@ -156,17 +175,25 @@ func (h *Handler) Export(c *gin.Context) {
 			return
 		}
 		stripInventoryCost(rows, id.Role)
+		includeCost := id.Role == user.RoleSupervisor
+		headers := []string{"SKU", "Product", "Category", "Unit", "Quantity", "Min Stock", "Low Stock"}
+		if includeCost {
+			headers = append(headers, "Unit Cost", "Stock Value")
+		}
 		out := make([][]string, 0, len(rows))
 		for _, r := range rows {
 			low := "NO"
 			if r.IsLowStock {
 				low = "YES"
 			}
-			out = append(out, []string{r.SKU, r.Product, r.Category, r.Unit,
-				strconv.Itoa(r.Quantity), strconv.Itoa(r.MinStock), low,
-				formatCost(r.UnitCost), fmt.Sprintf("%.2f", r.StockValue)})
+			line := []string{r.SKU, r.Product, r.Category, r.Unit,
+				strconv.Itoa(r.Quantity), strconv.Itoa(r.MinStock), low}
+			if includeCost {
+				line = append(line, formatCost(r.UnitCost), fmt.Sprintf("%.2f", r.StockValue))
+			}
+			out = append(out, line)
 		}
-		writeCSV(c, "inventory", []string{"SKU", "Product", "Category", "Unit", "Quantity", "Min Stock", "Low Stock", "Unit Cost", "Stock Value"}, out)
+		writeCSV(c, "inventory", headers, out)
 	case "stock-movements":
 		rows, _, qerr := h.svc.Movements(ctx, f)
 		if qerr != nil {

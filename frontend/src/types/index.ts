@@ -115,6 +115,7 @@ export interface StockRequest {
   processed_by: ActorRef | null
   processed_at: string | null
   items: RequestItem[]
+  allowed_actions: string[]
   created_at: string
   updated_at: string
 }
@@ -125,6 +126,7 @@ export interface StockRequestList {
   status: RequestStatus
   department: DepartmentRef
   requested_by: ActorRef
+  allowed_actions: string[]
   purpose: string
   item_count: number
   total_requested: number
@@ -147,6 +149,7 @@ export interface StockReturn {
   status: ReturnStatus
   department: DepartmentRef
   requested_by: ActorRef
+  allowed_actions: string[]
   reason: string
   rejection_reason: string | null
   processed_by: ActorRef | null
@@ -162,6 +165,7 @@ export interface StockReturnList {
   status: ReturnStatus
   department: DepartmentRef
   requested_by: ActorRef
+  allowed_actions: string[]
   reason: string
   item_count: number
   total_requested: number

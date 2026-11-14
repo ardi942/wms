@@ -26,7 +26,7 @@ export function ProductListPage() {
   const isSupervisor = user?.role === 'SUPERVISOR'
   const columns: Column<Product>[] = [
     { key: 'sku', header: 'SKU', render: (p) => <span className="font-medium text-slate-900">{p.sku}</span> },
-    { key: 'name', header: 'Product', render: (p) => p.name },
+    { key: 'name', header: 'Product', render: (p) => p.name, tooltip: (p) => p.description ?? p.name },
     { key: 'category', header: 'Category', render: (p) => p.category.name },
     { key: 'stock', header: 'Stock', render: (p) => <span className={p.is_low_stock ? 'font-medium text-amber-700' : ''}>{formatQty(p.current_stock)} {p.unit.code}</span> },
     { key: 'min', header: 'Min', render: (p) => formatQty(p.min_stock) },
@@ -61,6 +61,19 @@ export function ProductListPage() {
           error={products.error}
           onRetry={() => products.refetch()}
           onRowClick={(p) => navigate(`/products/${p.id}`)}
+          getRowKey={(p) => p.id}
+          renderExpanded={(p) => (
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs uppercase text-slate-500">Description</dt><dd>{p.description ?? '—'}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Category</dt><dd>{p.category.name}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Unit</dt><dd>{p.unit.name} ({p.unit.code})</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Stock</dt><dd>{formatQty(p.current_stock)} / min {formatQty(p.min_stock)}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Status</dt><dd>{p.is_active ? 'Active' : 'Inactive'}</dd></div>
+              {isSupervisor && (
+                <div><dt className="text-xs uppercase text-slate-500">Unit cost</dt><dd>{formatCurrency(p.unit_cost)}</dd></div>
+              )}
+            </dl>
+          )}
         />
         {products.data && <Pagination meta={products.data.meta} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />}
       </Card>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { ArrowDownToLine, ArrowUpFromLine, ClipboardList, Package, TriangleAlert, Wallet } from 'lucide-react'
@@ -5,7 +6,7 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 import { reportApi } from '../../api/endpoints'
 import { useAuth } from '../../auth/AuthProvider'
 import { Card, CardHeader } from '../../components/ui'
-import { ErrorState, Loading, PageHeader } from '../../components/common'
+import { DataTable, ErrorState, Loading, PageHeader, Pagination, type Column } from '../../components/common'
 import { formatCurrency, formatDateTime, formatQty } from '../../lib/format'
 import type { ChartPoint, Dashboard, LowStockItem, Movement, PendingPreview, UsageReportRow } from '../../types'
 
@@ -23,27 +24,50 @@ function KPI({ label, value, icon: Icon, tone }: { label: string; value: string;
   )
 }
 
-function MovementRows({ rows }: { rows: Movement[] }) {
-  if (!rows.length) return <p className="px-5 py-6 text-sm text-slate-500">No recent movements.</p>
+function RecentMovementsCard({ title }: { title: string }) {
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const query = useQuery({
+    queryKey: ['dashboard', 'recent-movements', page, pageSize],
+    queryFn: () => reportApi.recentMovements({ page, page_size: pageSize }),
+  })
+
+  const columns: Column<Movement>[] = [
+    { key: 'product', header: 'Product', render: (m) => `${m.product.sku} — ${m.product.name}`, tooltip: (m) => `${m.product.sku} — ${m.product.name}` },
+    { key: 'type', header: 'Type', render: (m) => <span className={m.movement_type === 'IN' ? 'text-emerald-600' : 'text-red-600'}>{m.movement_type}</span> },
+    { key: 'qty', header: 'Qty', render: (m) => `${m.quantity_delta > 0 ? '+' : ''}${formatQty(m.quantity_delta)}` },
+    { key: 'ref', header: 'Reference', render: (m) => m.reference_number },
+    { key: 'when', header: 'When', render: (m) => formatDateTime(m.created_at) },
+  ]
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
-          <tr><th className="px-4 py-2">Product</th><th className="px-4 py-2">Type</th><th className="px-4 py-2">Qty</th><th className="px-4 py-2">Reference</th><th className="px-4 py-2">When</th></tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {rows.map((m) => (
-            <tr key={m.id}>
-              <td className="px-4 py-2">{m.product.sku} — {m.product.name}</td>
-              <td className="px-4 py-2"><span className={m.movement_type === 'IN' ? 'text-emerald-600' : 'text-red-600'}>{m.movement_type}</span></td>
-              <td className="px-4 py-2">{m.quantity_delta > 0 ? '+' : ''}{formatQty(m.quantity_delta)}</td>
-              <td className="px-4 py-2">{m.reference_number}</td>
-              <td className="px-4 py-2 text-slate-500">{formatDateTime(m.created_at)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Card>
+      <CardHeader title={title} />
+      <DataTable
+        columns={columns}
+        rows={query.data?.items ?? []}
+        loading={query.isLoading}
+        error={query.error}
+        onRetry={() => query.refetch()}
+        emptyTitle="No recent movements."
+        getRowKey={(m) => m.id}
+        renderExpanded={(m) => (
+          <dl className="grid gap-2 text-sm sm:grid-cols-2">
+            <div><dt className="text-xs uppercase text-slate-500">Reference</dt><dd>{m.reference_number}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">Department</dt><dd>{m.department?.name ?? '—'}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">Actor</dt><dd>{m.actor.full_name}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">Reasons / notes</dt><dd>{m.reason ?? m.notes ?? '—'}</dd></div>
+          </dl>
+        )}
+      />
+      {query.data && (
+        <Pagination
+          meta={query.data.meta}
+          onPage={setPage}
+          onPageSize={(s) => { setPageSize(s); setPage(1) }}
+        />
+      )}
+    </Card>
   )
 }
 
@@ -75,17 +99,14 @@ function Supervisor({ data }: { data: Dashboard }) {
         <KPI label="Low stock" value={formatQty(data.low_stock_count)} icon={TriangleAlert} tone="bg-amber-50 text-amber-700" />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="p-4"><p className="text-sm text-slate-500">Incoming today</p><p className="text-2xl font-semibold">{formatQty((data.incoming as { today_units: number })?.today_units)}</p></Card>
-        <Card className="p-4"><p className="text-sm text-slate-500">Outgoing today</p><p className="text-2xl font-semibold">{formatQty((data.outgoing as { today_units: number })?.today_units)}</p></Card>
+        <KPI label="Incoming today" value={formatQty((data.incoming as { today_units: number })?.today_units)} icon={ArrowUpFromLine} tone="bg-emerald-50 text-emerald-700" />
+        <KPI label="Outgoing today" value={formatQty((data.outgoing as { today_units: number })?.today_units)} icon={ArrowDownToLine} tone="bg-red-50 text-red-700" />
       </div>
       <Card>
         <CardHeader title="Movement trend" description="Units in and out over the last 14 days" />
         <Chart data={data.movement_chart ?? []} />
       </Card>
-      <Card>
-        <CardHeader title="Recent movements" />
-        <MovementRows rows={data.recent_movements ?? []} />
-      </Card>
+      <RecentMovementsCard title="Recent movements" />
     </div>
   )
 }
@@ -130,15 +151,13 @@ function Admin({ data }: { data: Dashboard }) {
           )}
         </Card>
       </div>
-      <Card>
-        <CardHeader title="Today's activity" />
-        <MovementRows rows={data.recent_movements ?? []} />
-      </Card>
+      <RecentMovementsCard title="Today's activity" />
     </div>
   )
 }
 
 function Department({ data }: { data: Dashboard }) {
+  const low = (data.low_stock ?? []) as LowStockItem[]
   const usage = (data.usage_last_30d ?? []) as UsageReportRow[]
   return (
     <div className="space-y-4">
@@ -148,6 +167,19 @@ function Department({ data }: { data: Dashboard }) {
         <KPI label="Fulfilled" value={formatQty(data.my_fulfilled_requests)} icon={ArrowUpFromLine} tone="bg-emerald-50 text-emerald-700" />
         <KPI label="Partially fulfilled" value={formatQty(data.my_partially_fulfilled_requests)} icon={ArrowDownToLine} tone="bg-violet-50 text-violet-700" />
       </div>
+      <Card>
+        <CardHeader title="Low stock attention" action={<Link className="text-sm text-brand-600" to="/reports?tab=low-stock">View report</Link>} />
+        {low.length === 0 ? <p className="px-5 py-6 text-sm text-slate-500">All products are above their minimum.</p> : (
+          <ul className="divide-y divide-slate-100">
+            {low.map((p) => (
+              <li key={p.product_id} className="flex items-center justify-between px-5 py-3 text-sm">
+                <span><span className="font-medium">{p.sku}</span> — {p.name}</span>
+                <span className="text-amber-700">{formatQty(p.quantity)} / {formatQty(p.min_stock)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
       <Card>
         <CardHeader title="My department usage (30 days)" action={<Link className="text-sm text-brand-600" to="/reports?tab=department-usage">View report</Link>} />
         {usage.length === 0 ? <p className="px-5 py-6 text-sm text-slate-500">No usage yet.</p> : (
@@ -163,17 +195,17 @@ function Department({ data }: { data: Dashboard }) {
           </div>
         )}
       </Card>
-      <Card>
-        <CardHeader title="Recent department movements" />
-        <MovementRows rows={data.recent_department_movements ?? []} />
-      </Card>
+      <RecentMovementsCard title="Recent department movements" />
     </div>
   )
 }
 
 export function DashboardPage() {
   const { user } = useAuth()
-  const query = useQuery({ queryKey: ['dashboard'], queryFn: async () => (await reportApi.dashboard()).data })
+  const query = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: async () => (await reportApi.dashboard()).data,
+  })
   if (query.isLoading) return <Loading />
   if (query.error) return <ErrorState error={query.error} onRetry={() => query.refetch()} />
   const data = query.data as Dashboard

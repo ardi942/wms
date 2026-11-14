@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"wms/backend/internal/user"
 )
 
 const (
@@ -12,6 +13,10 @@ const (
 	StatusFulfilled          = "FULFILLED"
 	StatusRejected           = "REJECTED"
 	StatusCanceled           = "CANCELLED"
+
+	ActionFulfill = "fulfill"
+	ActionReject  = "reject"
+	ActionCancel  = "cancel"
 )
 
 type Request struct {
@@ -79,6 +84,7 @@ type DTO struct {
 	ProcessedBy     *ActorRef      `json:"processed_by"`
 	ProcessedAt     *time.Time     `json:"processed_at"`
 	Items           []ItemDTO      `json:"items"`
+	AllowedActions  []string       `json:"allowed_actions"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 }
@@ -93,6 +99,22 @@ type ListDTO struct {
 	ItemCount      int           `json:"item_count"`
 	TotalRequested int           `json:"total_requested"`
 	TotalIssued    int           `json:"total_issued"`
+	AllowedActions []string      `json:"allowed_actions"`
 	CreatedAt      time.Time     `json:"created_at"`
 	UpdatedAt      time.Time     `json:"updated_at"`
+}
+
+func allowedActions(status, role string, actorDept *uuid.UUID, deptID uuid.UUID) []string {
+	actions := []string{}
+	switch role {
+	case user.RoleWarehouseAdmin:
+		if status == StatusPending || status == StatusPartiallyFulfilled {
+			actions = append(actions, "fulfill", "reject")
+		}
+	case user.RoleDepartmentUser:
+		if status == StatusPending && actorDept != nil && *actorDept == deptID {
+			actions = append(actions, "cancel")
+		}
+	}
+	return actions
 }

@@ -2,26 +2,29 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Bell, Boxes, ClipboardList, LayoutDashboard, LogOut, Package, RotateCcw, ScrollText, SlidersHorizontal, Truck, Users } from 'lucide-react'
 import { useAuth } from '../../auth/AuthProvider'
-import { notificationApi, roleLabels } from '../../api/endpoints'
+import { useT } from '../../i18n/I18nProvider'
+import { notificationApi } from '../../api/endpoints'
 import { navItems } from '../../lib/constants'
 import { cn } from '../../lib/utils'
+import { LanguageSwitcher } from '../../i18n/I18nProvider'
 import type { Role } from '../../types'
 
 const icons: Record<string, typeof LayoutDashboard> = {
-  Dashboard: LayoutDashboard,
-  Products: Package,
-  Inventory: Boxes,
-  Receiving: Truck,
-  'Stock Requests': ClipboardList,
-  Returns: RotateCcw,
-  Adjustments: SlidersHorizontal,
-  Reports: ScrollText,
-  Users: Users,
-  Notifications: Bell,
+  '/dashboard': LayoutDashboard,
+  '/products': Package,
+  '/inventory': Boxes,
+  '/receiving': Truck,
+  '/requests': ClipboardList,
+  '/returns': RotateCcw,
+  '/adjustments': SlidersHorizontal,
+  '/reports': ScrollText,
+  '/users': Users,
+  '/notifications': Bell,
 }
 
 export function AppShell() {
   const { user, logout } = useAuth()
+  const { t } = useT()
   const navigate = useNavigate()
   const { data: unread } = useQuery({
     queryKey: ['notifications', 'unread-count'],
@@ -43,7 +46,7 @@ export function AppShell() {
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {items.map((item) => {
-            const Icon = icons[item.label] ?? LayoutDashboard
+            const Icon = icons[item.to] ?? LayoutDashboard
             return (
               <NavLink
                 key={item.to}
@@ -56,8 +59,8 @@ export function AppShell() {
                 }
               >
                 <Icon className="h-4 w-4" />
-                {item.label}
-                {item.label === 'Notifications' && Boolean(unread) && (
+                {t(item.key)}
+                {item.to === '/notifications' && Boolean(unread) && (
                   <span className="ml-auto rounded-full bg-red-100 px-1.5 text-xs font-semibold text-red-700">{unread}</span>
                 )}
               </NavLink>
@@ -83,17 +86,18 @@ export function AppShell() {
               <Bell className="h-5 w-5" />
               {Boolean(unread) && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />}
             </button>
+            <LanguageSwitcher />
             <div className="text-right">
               <p className="text-sm font-medium text-slate-800">{user.full_name}</p>
               <p className="text-xs text-slate-500">
-                {roleLabels[user.role as Role]}
+                {t(`role.${user.role}`)}
                 {user.department ? ` · ${user.department.name}` : ''}
               </p>
             </div>
             <button
               onClick={() => { logout(); navigate('/login') }}
               className="rounded-md p-2 text-slate-500 hover:bg-slate-100"
-              aria-label="Log out"
+              aria-label={t('common.signOut')}
             >
               <LogOut className="h-5 w-5" />
             </button>

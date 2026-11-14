@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { AlertTriangle, CalendarDays, Inbox, RefreshCw, Search, X } from 'lucide-react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useT } from '../../i18n/I18nProvider'
+import { AlertTriangle, CalendarDays, ChevronRight, Inbox, RefreshCw, Search, X } from 'lucide-react'
 import { DayPicker, type DateRange } from 'react-day-picker'
 import 'react-day-picker/style.css'
 import { ApiError } from '../../api/client'
@@ -24,9 +25,11 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export function Loading({ label = 'Loading…' }: { label?: string }) {
+  const { t } = useT()
+  const defaultLabel = t('common.loading')
   return (
     <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
-      <Spinner /> {label}
+      <Spinner /> {label || defaultLabel}
     </div>
   )
 }
@@ -47,10 +50,12 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 }
 
 export function EmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+  const { t } = useT()
+  const defaultTitle = t('common.noRecords')
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
       <Inbox className="h-8 w-8 text-slate-300" />
-      <p className="font-medium text-slate-700">{title}</p>
+      <p className="font-medium text-slate-700">{title || defaultTitle}</p>
       {description && <p className="max-w-sm text-sm text-slate-500">{description}</p>}
       {action}
     </div>
@@ -58,7 +63,10 @@ export function EmptyState({ title, description, action }: { title: string; desc
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  return <Badge tone={statusTone(status)}>{statusLabel(status)}</Badge>
+  const { t } = useT()
+  const key = `status.${status}`
+  const translated = t(key)
+  return <Badge tone={statusTone(status)}>{translated === key ? statusLabel(status) : translated}</Badge>
 }
 
 export interface Column<T> {
@@ -66,6 +74,7 @@ export interface Column<T> {
   header: string
   className?: string
   render: (row: T) => ReactNode
+  tooltip?: (row: T) => string | undefined
 }
 
 export function DataTable<T>({
@@ -74,8 +83,10 @@ export function DataTable<T>({
   loading,
   error,
   onRetry,
-  emptyTitle = 'No records found',
+  emptyTitle,
   onRowClick,
+  renderExpanded,
+  getRowKey,
 }: {
   columns: Column<T>[]
   rows: T[]
@@ -84,32 +95,77 @@ export function DataTable<T>({
   onRetry?: () => void
   emptyTitle?: string
   onRowClick?: (row: T) => void
+  renderExpanded?: (row: T) => ReactNode
+  getRowKey?: (row: T, index: number) => string | number
 }) {
+  const { t } = useT()
+  const [expanded, setExpanded] = useState<Set<string | number>>(new Set())
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={onRetry} />
-  if (!rows.length) return <EmptyState title={emptyTitle} />
+  if (!rows.length) return <EmptyState title={emptyTitle ?? t('common.noRecords')} />
+  const columnCount = columns.length + (renderExpanded ? 1 : 0)
+  const toggle = (key: string | number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
+            {renderExpanded && <th className="w-10 px-4 py-3" aria-label="Expand" />}
             {columns.map((c) => (
               <th key={c.key} className={cn('px-4 py-3 font-medium', c.className)}>{c.header}</th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {rows.map((row, i) => (
-            <tr
-              key={i}
-              className={cn('bg-white transition-colors', onRowClick && 'cursor-pointer hover:bg-slate-50')}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-            >
-              {columns.map((c) => (
-                <td key={c.key} className={cn('px-4 py-3 align-middle', c.className)}>{c.render(row)}</td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row, index) => {
+            const key = getRowKey ? getRowKey(row, index) : index
+            const isOpen = expanded.has(key)
+            return (
+              <Fragment key={key}>
+                <tr
+                  className={cn('bg-white transition-colors', onRowClick && 'cursor-pointer hover:bg-slate-50')}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
+                  {renderExpanded && (
+                    <td className="px-4 py-3 align-middle">
+                      <button
+                        type="button"
+                        aria-label={isOpen ? t('actions.collapse') : t('actions.expand')}
+                        aria-expanded={isOpen}
+                        onClick={(e) => { e.stopPropagation(); toggle(key) }}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      >
+                        <ChevronRight className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-90')} />
+                      </button>
+                    </td>
+                  )}
+                  {columns.map((c) => (
+                    <td
+                      key={c.key}
+                      title={c.tooltip?.(row)}
+                      className={cn('px-4 py-3 align-middle', c.className)}
+                    >
+                      {c.render(row)}
+                    </td>
+                  ))}
+                </tr>
+                {renderExpanded && isOpen && (
+                  <tr className="bg-slate-50">
+                    <td colSpan={columnCount} className="px-4 py-4">
+                      {renderExpanded(row)}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -361,5 +417,45 @@ export function ProductPicker({
         </div>
       )}
     </div>
+  )
+}
+
+
+/* WorkflowStepper — appended per plan §3.3.1 */
+export function WorkflowStepper({
+  steps,
+  current,
+}: {
+  steps: Array<{ key: string; label: string }>
+  current: string
+}) {
+  const terminal = current === 'REJECTED' || current === 'CANCELLED'
+  const currentIndex = steps.findIndex((s) => s.key === current)
+  return (
+    <ol className="flex flex-wrap items-center gap-2">
+      {steps.map((step, index) => {
+        const done = !terminal && currentIndex > index
+        const active = !terminal && currentIndex === index
+        return (
+          <li key={step.key} className="flex items-center gap-2">
+            <span
+              className={cn(
+                'grid h-6 w-6 place-items-center rounded-full text-xs font-semibold',
+                done && 'bg-emerald-100 text-emerald-700',
+                active && 'bg-brand-600 text-white',
+                !done && !active && 'bg-slate-100 text-slate-500',
+              )}
+            >
+              {done ? '✓' : index + 1}
+            </span>
+            <span className={cn('text-sm', active ? 'font-medium text-slate-900' : 'text-slate-500')}>
+              {step.label}
+            </span>
+            {index < steps.length - 1 && <span className="mx-1 h-px w-6 bg-slate-200" />}
+          </li>
+        )
+      })}
+      {terminal && <Badge tone="red">{statusLabel(current)}</Badge>}
+    </ol>
   )
 }

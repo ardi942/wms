@@ -6,12 +6,14 @@ import { inventoryApi, requestApi } from '../../api/endpoints'
 import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthProvider'
 import { Button, Card, CardHeader, Input, Textarea } from '../../components/ui'
-import { ConfirmDialog, ErrorState, Loading, PageHeader, StatusBadge } from '../../components/common'
+import { ConfirmDialog, ErrorState, Loading, PageHeader, StatusBadge, WorkflowStepper } from '../../components/common'
+import { useT } from '../../i18n/I18nProvider'
 import { formatDateTime, formatQty } from '../../lib/format'
 
 export function RequestDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
+  const { t } = useT()
   const queryClient = useQueryClient()
   const request = useQuery({ queryKey: ['request', id], queryFn: () => requestApi.get(id!) })
   const balances = useQuery({
@@ -39,9 +41,7 @@ export function RequestDetailPage() {
   if (request.error) return <ErrorState error={request.error} onRetry={() => request.refetch()} />
   if (!req) return null
 
-  const isAdmin = user?.role === 'WAREHOUSE_ADMIN'
-  const isDept = user?.role === 'DEPARTMENT_USER'
-  const canAct = req.status === 'PENDING' || req.status === 'PARTIALLY_FULFILLED'
+  const can = (action: string) => req.allowed_actions?.includes(action) ?? false
   const stockByProduct = new Map((balances.data?.items ?? []).map((b) => [b.product_id, b.quantity]))
 
   const invalidate = async () => {
@@ -110,15 +110,23 @@ export function RequestDetailPage() {
         description={`${req.department.name} · submitted by ${req.requested_by.full_name} on ${formatDateTime(req.created_at)}`}
         actions={
           <>
-            <Link to="/requests"><Button variant="outline">Back</Button></Link>
-            {isAdmin && canAct && <Button variant="danger" onClick={() => setRejectOpen(true)}>Reject</Button>}
-            {isAdmin && canAct && <Button onClick={() => setFulfillOpen(true)}>Fulfil</Button>}
-            {isDept && req.status === 'PENDING' && <Button variant="danger" onClick={() => setCancelOpen(true)}>Cancel request</Button>}
+            <Link to="/requests"><Button variant="outline">{t('common.back')}</Button></Link>
+            {can('reject') && <Button variant="danger" onClick={() => setRejectOpen(true)}>{t('actions.reject')}</Button>}
+            {can('fulfill') && <Button onClick={() => setFulfillOpen(true)}>{t('actions.fulfill')}</Button>}
+            {can('cancel') && <Button variant="danger" onClick={() => setCancelOpen(true)}>{t('actions.cancel')}</Button>}
           </>
         }
       />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
+          <WorkflowStepper
+            current={req.status}
+            steps={[
+              { key: 'PENDING', label: t('status.PENDING') },
+              { key: 'PARTIALLY_FULFILLED', label: t('status.PARTIALLY_FULFILLED') },
+              { key: 'FULFILLED', label: t('status.FULFILLED') },
+            ]}
+          />
           <dl className="grid gap-4 sm:grid-cols-2">
             <div><dt className="text-xs uppercase text-slate-500">Status</dt><dd className="mt-1"><StatusBadge status={req.status} /></dd></div>
             <div><dt className="text-xs uppercase text-slate-500">Purpose</dt><dd className="mt-1">{req.purpose}</dd></div>

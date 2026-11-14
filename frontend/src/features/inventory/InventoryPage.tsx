@@ -22,7 +22,7 @@ export function InventoryPage() {
 
   const columns: Column<InventoryBalance>[] = [
     { key: 'sku', header: 'SKU', render: (r) => <span className="font-medium">{r.sku}</span> },
-    { key: 'name', header: 'Product', render: (r) => r.name },
+    { key: 'name', header: 'Product', render: (r) => r.name, tooltip: (r) => r.name },
     { key: 'category', header: 'Category', render: (r) => r.category },
     { key: 'qty', header: 'Quantity', render: (r) => <span className={r.is_low_stock ? 'font-semibold text-amber-700' : ''}>{formatQty(r.quantity)} {r.unit}</span> },
     { key: 'min', header: 'Min', render: (r) => formatQty(r.min_stock) },
@@ -50,6 +50,19 @@ export function InventoryPage() {
           error={balances.error}
           onRetry={() => balances.refetch()}
           onRowClick={(r) => navigate(`/inventory/${r.product_id}`)}
+          getRowKey={(r) => r.product_id}
+          renderExpanded={(r) => (
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs uppercase text-slate-500">SKU</dt><dd>{r.sku}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Category</dt><dd>{r.category}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Quantity</dt><dd>{formatQty(r.quantity)} {r.unit}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Minimum</dt><dd>{formatQty(r.min_stock)}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Status</dt><dd>{r.is_low_stock ? 'Low stock' : 'OK'}</dd></div>
+              {user?.role === 'SUPERVISOR' && (
+                <div><dt className="text-xs uppercase text-slate-500">Stock value</dt><dd>{formatCurrency(r.stock_value)}</dd></div>
+              )}
+            </dl>
+          )}
         />
         {balances.data && <Pagination meta={balances.data.meta} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />}
       </Card>

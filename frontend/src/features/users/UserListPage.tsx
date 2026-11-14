@@ -38,7 +38,24 @@ export function UserListPage() {
             <option value="false">Inactive</option>
           </Select>
         </FilterBar>
-        <DataTable columns={columns} rows={users.data?.items ?? []} loading={users.isLoading} error={users.error} onRetry={() => users.refetch()} onRowClick={(u) => navigate(`/users/${u.id}/edit`)} />
+        <DataTable
+          columns={columns}
+          rows={users.data?.items ?? []}
+          loading={users.isLoading}
+          error={users.error}
+          onRetry={() => users.refetch()}
+          onRowClick={(u) => navigate(`/users/${u.id}/edit`)}
+          getRowKey={(u) => u.id}
+          renderExpanded={(u) => (
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs uppercase text-slate-500">Email</dt><dd>{u.email}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Department</dt><dd>{u.department?.name ?? '—'}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Role</dt><dd>{u.role.replaceAll('_', ' ')}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Status</dt><dd>{u.is_active ? 'Active' : 'Inactive'}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Updated</dt><dd>{formatDateTime(u.updated_at)}</dd></div>
+            </dl>
+          )}
+        />
         {users.data && <Pagination meta={users.data.meta} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />}
       </Card>
     </div>

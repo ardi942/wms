@@ -4,7 +4,7 @@ NPM := npm
 DATABASE_URL ?= postgres://wms:wms@localhost:5432/wms?sslmode=disable
 
 .PHONY: help install dev-up dev-down migrate seed backend worker frontend \
-	build test test-backend test-frontend lint e2e compose-up compose-down reset clean
+	build test test-backend test-frontend lint e2e compose-up compose-down reset clean redeploy
 
 help:
 	@echo "WMS development targets"
@@ -18,6 +18,7 @@ help:
 	@echo "  make test           Run backend and frontend tests"
 	@echo "  make build          Build backend binaries and frontend"
 	@echo "  make compose-up     Start the full Docker Compose stack"
+	@echo "  make redeploy       Commit, rebuild and redeploy (ARGS=\"-m msg -y\")"
 	@echo "  make reset          Destroy compose volumes and rebuild from scratch"
 
 install:
@@ -67,6 +68,9 @@ compose-up:
 
 compose-down:
 	docker compose down
+
+redeploy:
+	scripts/redeploy.sh $(ARGS)
 
 reset:
 	docker compose down -v

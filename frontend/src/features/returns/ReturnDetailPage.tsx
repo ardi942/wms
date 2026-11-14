@@ -4,14 +4,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { returnApi } from '../../api/endpoints'
 import { ApiError } from '../../api/client'
-import { useAuth } from '../../auth/AuthProvider'
 import { Button, Card, CardHeader, Input, Textarea } from '../../components/ui'
-import { ConfirmDialog, ErrorState, Loading, PageHeader, StatusBadge } from '../../components/common'
+import { ConfirmDialog, ErrorState, Loading, PageHeader, StatusBadge, WorkflowStepper } from '../../components/common'
+import { useT } from '../../i18n/I18nProvider'
 import { formatDateTime, formatQty } from '../../lib/format'
 
 export function ReturnDetailPage() {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { t } = useT()
   const queryClient = useQueryClient()
   const ret = useQuery({ queryKey: ['return', id], queryFn: () => returnApi.get(id!) })
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -34,8 +34,7 @@ export function ReturnDetailPage() {
   if (ret.error) return <ErrorState error={ret.error} onRetry={() => ret.refetch()} />
   if (!row) return null
 
-  const isAdmin = user?.role === 'WAREHOUSE_ADMIN'
-  const isDept = user?.role === 'DEPARTMENT_USER'
+const can = (action: string) => row.allowed_actions?.includes(action) ?? false
 
   const invalidate = async () => {
     await Promise.all([
@@ -101,15 +100,22 @@ export function ReturnDetailPage() {
         description={`${row.department.name} · submitted by ${row.requested_by.full_name} on ${formatDateTime(row.created_at)}`}
         actions={
           <>
-            <Link to="/returns"><Button variant="outline">Back</Button></Link>
-            {isAdmin && row.status === 'PENDING' && <Button variant="danger" onClick={() => setRejectOpen(true)}>Reject</Button>}
-            {isAdmin && row.status === 'PENDING' && <Button onClick={() => setConfirmOpen(true)}>Confirm return</Button>}
-            {isDept && row.status === 'PENDING' && <Button variant="danger" onClick={() => setCancelOpen(true)}>Cancel return</Button>}
+            <Link to="/returns"><Button variant="outline">{t('common.back')}</Button></Link>
+            {can('reject') && <Button variant="danger" onClick={() => setRejectOpen(true)}>{t('actions.reject')}</Button>}
+            {can('confirm') && <Button onClick={() => setConfirmOpen(true)}>{t('actions.confirm')}</Button>}
+            {can('cancel') && <Button variant="danger" onClick={() => setCancelOpen(true)}>{t('actions.cancel')}</Button>}
           </>
         }
       />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
+          <WorkflowStepper
+            current={row.status}
+            steps={[
+              { key: 'PENDING', label: t('status.PENDING') },
+              { key: 'CONFIRMED', label: t('status.CONFIRMED') },
+            ]}
+          />
           <dl className="grid gap-4 sm:grid-cols-2">
             <div><dt className="text-xs uppercase text-slate-500">Status</dt><dd className="mt-1"><StatusBadge status={row.status} /></dd></div>
             <div><dt className="text-xs uppercase text-slate-500">Reason</dt><dd className="mt-1">{row.reason}</dd></div>

@@ -51,9 +51,9 @@ export function NotificationsPage() {
     { key: 'title', header: 'Notification', render: (n) => (
       <div>
         <p className={n.is_read ? 'text-slate-600' : 'font-semibold text-slate-900'}>{n.title}</p>
-        <p className="text-sm text-slate-500">{n.body}</p>
+        <p className="text-sm text-slate-500 line-clamp-1">{n.body}</p>
       </div>
-    ) },
+    ), tooltip: (n) => n.body },
     { key: 'when', header: 'When', render: (n) => formatDateTime(n.created_at) },
     { key: 'actions', header: '', render: (n) => (
       <div className="flex justify-end gap-2">
@@ -72,7 +72,23 @@ export function NotificationsPage() {
             <input type="checkbox" checked={unreadOnly} onChange={(e) => { setUnreadOnly(e.target.checked); setPage(1) }} className="h-4 w-4 rounded border-slate-300" /> Unread only
           </label>
         </FilterBar>
-        <DataTable columns={columns} rows={notifications.data?.items ?? []} loading={notifications.isLoading} error={notifications.error} onRetry={() => notifications.refetch()} emptyTitle="No notifications" onRowClick={(n) => { void markRead(n) }} />
+        <DataTable
+          columns={columns}
+          rows={notifications.data?.items ?? []}
+          loading={notifications.isLoading}
+          error={notifications.error}
+          onRetry={() => notifications.refetch()}
+          emptyTitle="No notifications"
+          onRowClick={(n) => { void markRead(n) }}
+          getRowKey={(n) => n.id}
+          renderExpanded={(n) => (
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              <div className="sm:col-span-2"><dt className="text-xs uppercase text-slate-500">Message</dt><dd>{n.body}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Type</dt><dd>{n.type}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Received</dt><dd>{formatDateTime(n.created_at)}</dd></div>
+            </dl>
+          )}
+        />
         {notifications.data && <Pagination meta={notifications.data.meta} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />}
       </Card>
     </div>

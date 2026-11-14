@@ -4,13 +4,15 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { requestApi } from '../../api/endpoints'
 import { useAuth } from '../../auth/AuthProvider'
-import { Button, Card, Select } from '../../components/ui'
+import { Button, Card, Select, Tooltip } from '../../components/ui'
 import { DataTable, FilterBar, Pagination, PageHeader, SearchInput, StatusBadge, type Column } from '../../components/common'
+import { useT } from '../../i18n/I18nProvider'
 import { formatDateTime, formatQty } from '../../lib/format'
 import type { StockRequestList } from '../../types'
 
 export function RequestListPage() {
   const { user } = useAuth()
+  const { t } = useT()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [status, setStatus] = useState(params.get('status') ?? '')
@@ -23,10 +25,29 @@ export function RequestListPage() {
   const columns: Column<StockRequestList>[] = [
     { key: 'number', header: 'Request', render: (r) => <span className="font-medium text-brand-700">{r.request_number}</span> },
     { key: 'department', header: 'Department', render: (r) => r.department.name },
-    { key: 'purpose', header: 'Purpose', render: (r) => <span className="line-clamp-1">{r.purpose}</span> },
+    { key: 'purpose', header: 'Purpose', render: (r) => <span className="line-clamp-1">{r.purpose}</span>, tooltip: (r) => r.purpose },
     { key: 'items', header: 'Lines', render: (r) => formatQty(r.item_count) },
     { key: 'qty', header: 'Issued / requested', render: (r) => `${formatQty(r.total_issued)} / ${formatQty(r.total_requested)}` },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+    {
+      key: 'actions',
+      header: '',
+      className: 'text-right',
+      render: (r) =>
+        (r.allowed_actions?.length ?? 0) > 0 ? (
+          <Link
+            to={`/requests/${r.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-medium text-brand-600 hover:underline"
+          >
+            {t('actions.review')}
+          </Link>
+        ) : (
+          <Tooltip content={t('actions.none')}>
+            <span className="text-xs text-slate-400">—</span>
+          </Tooltip>
+        ),
+    },
     { key: 'created', header: 'Created', render: (r) => formatDateTime(r.created_at) },
   ]
 
@@ -45,7 +66,23 @@ export function RequestListPage() {
             {['PENDING', 'PARTIALLY_FULFILLED', 'FULFILLED', 'REJECTED', 'CANCELLED'].map((s) => <option key={s} value={s}>{s.replaceAll('_', ' ')}</option>)}
           </Select>
         </FilterBar>
-        <DataTable columns={columns} rows={requests.data?.items ?? []} loading={requests.isLoading} error={requests.error} onRetry={() => requests.refetch()} onRowClick={(r) => navigate(`/requests/${r.id}`)} />
+        <DataTable
+          columns={columns}
+          rows={requests.data?.items ?? []}
+          loading={requests.isLoading}
+          error={requests.error}
+          onRetry={() => requests.refetch()}
+          onRowClick={(r) => navigate(`/requests/${r.id}`)}
+          getRowKey={(r) => r.id}
+          renderExpanded={(r) => (
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs uppercase text-slate-500">Purpose</dt><dd>{r.purpose}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Requested by</dt><dd>{r.requested_by.full_name}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Issued / requested</dt><dd>{formatQty(r.total_issued)} / {formatQty(r.total_requested)}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">Updated</dt><dd>{formatDateTime(r.updated_at)}</dd></div>
+            </dl>
+          )}
+        />
         {requests.data && <Pagination meta={requests.data.meta} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />}
       </Card>
     </div>

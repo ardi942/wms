@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { I18nProvider } from '../../i18n/I18nProvider'
 import { AuthProvider } from '../../auth/AuthProvider'
 import { LoginPage } from './LoginPage'
 
@@ -10,14 +11,16 @@ function renderLogin() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/login']}>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard" element={<div>Dashboard home</div>} />
-          </Routes>
-        </AuthProvider>
-      </MemoryRouter>
+      <I18nProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/dashboard" element={<div>Dashboard home</div>} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </I18nProvider>
     </QueryClientProvider>,
   )
 }

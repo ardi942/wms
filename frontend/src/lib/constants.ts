@@ -6,15 +6,15 @@ export const ROLE_DEPARTMENT: Role = 'DEPARTMENT_USER'
 
 export const PAGE_SIZES = [10, 20, 50]
 
-export const navItems: Array<{ to: string; label: string; roles: Role[] }> = [
-  { to: '/dashboard', label: 'Dashboard', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
-  { to: '/products', label: 'Products', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
-  { to: '/inventory', label: 'Inventory', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
-  { to: '/receiving', label: 'Receiving', roles: ['WAREHOUSE_ADMIN'] },
-  { to: '/requests', label: 'Stock Requests', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
-  { to: '/returns', label: 'Returns', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
-  { to: '/adjustments', label: 'Adjustments', roles: ['WAREHOUSE_ADMIN'] },
-  { to: '/reports', label: 'Reports', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
-  { to: '/users', label: 'Users', roles: ['WAREHOUSE_ADMIN'] },
-  { to: '/notifications', label: 'Notifications', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+export const navItems: Array<{ to: string; key: string; roles: Role[] }> = [
+  { to: '/dashboard', key: 'nav.dashboard', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+  { to: '/products', key: 'nav.products', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+  { to: '/inventory', key: 'nav.inventory', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+  { to: '/receiving', key: 'nav.receiving', roles: ['WAREHOUSE_ADMIN'] },
+  { to: '/requests', key: 'nav.requests', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+  { to: '/returns', key: 'nav.returns', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+  { to: '/adjustments', key: 'nav.adjustments', roles: ['WAREHOUSE_ADMIN'] },
+  { to: '/reports', key: 'nav.reports', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+  { to: '/users', key: 'nav.users', roles: ['WAREHOUSE_ADMIN'] },
+  { to: '/notifications', key: 'nav.notifications', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
 ]

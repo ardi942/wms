@@ -48,7 +48,10 @@ func (h *Handler) List(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	httpx.List(c, items, httpx.NewMeta(p, total))
+	for i := range items {
+	items[i].AllowedActions = allowedActions(items[i].Status, identity.Role, identity.DepartmentID, items[i].Department.ID)
+}
+httpx.List(c, items, httpx.NewMeta(p, total))
 }
 
 func (h *Handler) Create(c *gin.Context) {

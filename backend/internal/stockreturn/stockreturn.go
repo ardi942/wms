@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"wms/backend/internal/user"
 )
 
 const (
@@ -78,6 +79,7 @@ type DTO struct {
 	ProcessedBy     *ActorRef      `json:"processed_by"`
 	ProcessedAt     *time.Time     `json:"processed_at"`
 	Items           []ItemDTO      `json:"items"`
+	AllowedActions  []string       `json:"allowed_actions"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 }
@@ -92,6 +94,22 @@ type ListDTO struct {
 	ItemCount      int           `json:"item_count"`
 	TotalRequested int           `json:"total_requested"`
 	TotalAccepted  int           `json:"total_accepted"`
+	AllowedActions []string      `json:"allowed_actions"`
 	CreatedAt      time.Time     `json:"created_at"`
 	UpdatedAt      time.Time     `json:"updated_at"`
+}
+
+func allowedActions(status, role string, actorDept *uuid.UUID, deptID uuid.UUID) []string {
+	actions := []string{}
+	switch role {
+	case user.RoleWarehouseAdmin:
+		if status == StatusPending {
+			actions = append(actions, "confirm", "reject")
+		}
+	case user.RoleDepartmentUser:
+		if status == StatusPending && actorDept != nil && *actorDept == deptID {
+			actions = append(actions, "cancel")
+		}
+	}
+	return actions
 }

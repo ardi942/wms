@@ -140,6 +140,16 @@ func (s *Service) recentMovements(ctx context.Context, departmentID *uuid.UUID, 
 	return items, err
 }
 
+// RecentMovements returns a paginated, role-scoped movement list for the
+// dashboard tables. It intentionally bypasses the 30s dashboard cache.
+func (s *Service) RecentMovements(ctx context.Context, departmentID *uuid.UUID, page, pageSize int) ([]inventory.MovementDTO, int64, error) {
+	return s.inv.ListMovements(ctx, inventory.MovementFilter{
+		DepartmentID: departmentID,
+		Page:         page,
+		PageSize:     pageSize,
+	})
+}
+
 func (s *Service) chart(ctx context.Context) ([]map[string]any, error) {
 	type row struct {
 		Date     string `gorm:"column:date"`

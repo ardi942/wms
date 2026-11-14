@@ -125,7 +125,16 @@ func (s *Service) Create(ctx context.Context, in CreateInput, actor *httpx.Ident
 		return nil, err
 	}
 	s.invalidate(ctx)
-	return s.repo.GetDetail(ctx, requestID)
+	dto, err := s.repo.GetDetail(ctx, requestID)
+	if err != nil {
+		return nil, err
+	}
+	return withActions(dto, actor), nil
+}
+
+func withActions(dto *DTO, actor *httpx.Identity) *DTO {
+	dto.AllowedActions = allowedActions(dto.Status, actor.Role, actor.DepartmentID, dto.Department.ID)
+	return dto
 }
 
 func (s *Service) validateActiveProducts(ctx context.Context, items []CreateItemInput) error {
@@ -165,7 +174,7 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID, actor *httpx.Identity) 
 			return nil, httpx.NotFound("stock request not found")
 		}
 	}
-	return dto, nil
+	return withActions(dto, actor), nil
 }
 
 func (s *Service) List(ctx context.Context, f Filter) ([]ListDTO, int64, error) {
@@ -298,7 +307,11 @@ func (s *Service) Fulfill(ctx context.Context, requestID uuid.UUID, in FulfillIn
 		return nil, err
 	}
 	s.invalidate(ctx)
-	return s.repo.GetDetail(ctx, requestID)
+	dto, err := s.repo.GetDetail(ctx, requestID)
+	if err != nil {
+		return nil, err
+	}
+	return withActions(dto, actor), nil
 }
 
 func (s *Service) Reject(ctx context.Context, requestID uuid.UUID, reason string, actor *httpx.Identity) (*DTO, error) {
@@ -333,7 +346,11 @@ func (s *Service) Reject(ctx context.Context, requestID uuid.UUID, reason string
 		return nil, err
 	}
 	s.invalidate(ctx)
-	return s.repo.GetDetail(ctx, requestID)
+	dto, err := s.repo.GetDetail(ctx, requestID)
+	if err != nil {
+		return nil, err
+	}
+	return withActions(dto, actor), nil
 }
 
 func (s *Service) Cancel(ctx context.Context, requestID uuid.UUID, actor *httpx.Identity) (*DTO, error) {
@@ -362,5 +379,9 @@ func (s *Service) Cancel(ctx context.Context, requestID uuid.UUID, actor *httpx.
 		return nil, err
 	}
 	s.invalidate(ctx)
-	return s.repo.GetDetail(ctx, requestID)
+	dto, err := s.repo.GetDetail(ctx, requestID)
+	if err != nil {
+		return nil, err
+	}
+	return withActions(dto, actor), nil
 }

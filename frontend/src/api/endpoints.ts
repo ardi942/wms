@@ -81,6 +81,8 @@ export const returnApi = {
 
 export const reportApi = {
   dashboard: () => api.get<Envelope<Dashboard>>('/reports/dashboard'),
+  recentMovements: (params: Record<string, unknown>) =>
+    list<Movement>('/reports/dashboard/recent-movements', params),
   inventory: (params: Record<string, unknown>) => list<InventoryReportRow>('/reports/inventory', params),
   movements: (params: Record<string, unknown>) => list<Movement>('/reports/stock-movements', params),
   departmentUsage: (params: Record<string, unknown>) => list<UsageReportRow>('/reports/department-usage', params),

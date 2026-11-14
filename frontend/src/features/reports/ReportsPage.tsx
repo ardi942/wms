@@ -77,7 +77,7 @@ export function ReportsPage() {
   const isSupervisor = user?.role === 'SUPERVISOR'
   const inventoryColumns: Column<InventoryReportRow>[] = [
     { key: 'sku', header: 'SKU', render: (r) => r.sku },
-    { key: 'product', header: 'Product', render: (r) => r.product },
+    { key: 'product', header: 'Product', render: (r) => r.product, tooltip: (r) => r.product },
     { key: 'category', header: 'Category', render: (r) => r.category },
     { key: 'qty', header: 'Quantity', render: (r) => <span className={r.is_low_stock ? 'text-amber-700' : ''}>{formatQty(r.quantity)} {r.unit}</span> },
     { key: 'min', header: 'Min', render: (r) => formatQty(r.min_stock) },
@@ -89,7 +89,7 @@ export function ReportsPage() {
   ]
   const movementColumns: Column<Movement>[] = [
     { key: 'when', header: 'When', render: (m) => formatDateTime(m.created_at) },
-    { key: 'product', header: 'Product', render: (m) => `${m.product.sku} — ${m.product.name}` },
+    { key: 'product', header: 'Product', render: (m) => `${m.product.sku} — ${m.product.name}`, tooltip: (m) => `${m.product.sku} — ${m.product.name}` },
     { key: 'type', header: 'Type', render: (m) => m.movement_type },
     { key: 'qty', header: 'Change', render: (m) => `${m.quantity_delta > 0 ? '+' : ''}${formatQty(m.quantity_delta)}` },
     { key: 'balance', header: 'Balance', render: (m) => formatQty(m.balance_after) },
@@ -99,7 +99,7 @@ export function ReportsPage() {
   const usageColumns: Column<UsageReportRow>[] = [
     { key: 'dept', header: 'Department', render: (r) => r.department },
     { key: 'sku', header: 'SKU', render: (r) => r.sku },
-    { key: 'product', header: 'Product', render: (r) => r.product },
+    { key: 'product', header: 'Product', render: (r) => r.product, tooltip: (r) => r.product },
     { key: 'issued', header: 'Issued', render: (r) => formatQty(r.issued_units) },
     { key: 'returned', header: 'Returned', render: (r) => formatQty(r.returned_units) },
     { key: 'net', header: 'Net used', render: (r) => formatQty(r.net_used) },
@@ -107,7 +107,7 @@ export function ReportsPage() {
   ]
   const lowColumns: Column<LowStockReportRow>[] = [
     { key: 'sku', header: 'SKU', render: (r) => r.sku },
-    { key: 'product', header: 'Product', render: (r) => r.product },
+    { key: 'product', header: 'Product', render: (r) => r.product, tooltip: (r) => r.product },
     { key: 'category', header: 'Category', render: (r) => r.category },
     { key: 'qty', header: 'Quantity', render: (r) => formatQty(r.quantity) },
     { key: 'min', header: 'Min', render: (r) => formatQty(r.min_stock) },
@@ -120,6 +120,61 @@ export function ReportsPage() {
     tab === 'movements' ? movementColumns :
     tab === 'department-usage' ? usageColumns : lowColumns
   ) as Column<unknown>[]
+
+  const expandedRow = (row: unknown) => {
+    if (tab === 'inventory') {
+      const r = row as InventoryReportRow
+      return (
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div><dt className="text-xs uppercase text-slate-500">Category</dt><dd>{r.category}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Quantity</dt><dd>{formatQty(r.quantity)} {r.unit}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Minimum</dt><dd>{formatQty(r.min_stock)}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Last movement</dt><dd>{formatDate(r.last_movement_at)}</dd></div>
+          {isSupervisor && <div><dt className="text-xs uppercase text-slate-500">Stock value</dt><dd>{formatCurrency(r.stock_value)}</dd></div>}
+        </dl>
+      )
+    }
+    if (tab === 'movements') {
+      const m = row as Movement
+      return (
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div><dt className="text-xs uppercase text-slate-500">Reference</dt><dd>{m.reference_number}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Department</dt><dd>{m.department?.name ?? '—'}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Supplier</dt><dd>{m.supplier ?? '—'}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Notes</dt><dd>{m.notes ?? m.reason ?? '—'}</dd></div>
+        </dl>
+      )
+    }
+    if (tab === 'department-usage') {
+      const u = row as UsageReportRow
+      return (
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div><dt className="text-xs uppercase text-slate-500">Issued</dt><dd>{formatQty(u.issued_units)}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Returned</dt><dd>{formatQty(u.returned_units)}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Net used</dt><dd>{formatQty(u.net_used)}</dd></div>
+          <div><dt className="text-xs uppercase text-slate-500">Last issued</dt><dd>{formatDateTime(u.last_issued_at)}</dd></div>
+        </dl>
+      )
+    }
+    const l = row as LowStockReportRow
+    return (
+      <dl className="grid gap-2 text-sm sm:grid-cols-2">
+        <div><dt className="text-xs uppercase text-slate-500">Category</dt><dd>{l.category}</dd></div>
+        <div><dt className="text-xs uppercase text-slate-500">Quantity</dt><dd>{formatQty(l.quantity)}</dd></div>
+        <div><dt className="text-xs uppercase text-slate-500">Minimum</dt><dd>{formatQty(l.min_stock)}</dd></div>
+        <div><dt className="text-xs uppercase text-slate-500">Shortage</dt><dd>{formatQty(l.shortage)}</dd></div>
+        <div><dt className="text-xs uppercase text-slate-500">Last movement</dt><dd>{formatDate(l.last_movement_at)}</dd></div>
+      </dl>
+    )
+  }
+
+  const rowKey = (row: unknown, index: number) => {
+    if (tab === 'movements') return (row as Movement).id
+    if (tab === 'inventory') return (row as InventoryReportRow).sku
+    if (tab === 'low-stock') return (row as LowStockReportRow).sku
+    const u = row as UsageReportRow
+    return `${u.department}-${u.sku}-${index}`
+  }
 
   return (
     <div>
@@ -168,7 +223,7 @@ export function ReportsPage() {
           )}
           <RangeDatePicker from={from} to={to} onFrom={setFrom} onTo={setTo} />
         </FilterBar>
-        <DataTable columns={columns} rows={(query.data?.items ?? []) as never[]} loading={query.isLoading} error={query.error} onRetry={() => query.refetch()} emptyTitle="No report rows" />
+        <DataTable columns={columns} rows={(query.data?.items ?? []) as never[]} loading={query.isLoading} error={query.error} onRetry={() => query.refetch()} emptyTitle="No report rows" getRowKey={rowKey} renderExpanded={expandedRow} />
         {query.data?.meta && <Pagination meta={query.data.meta} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />}
       </Card>
     </div>
