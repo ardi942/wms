@@ -59,7 +59,11 @@ set -a
 . ./.env
 set +a
 API_HEALTH="http://127.0.0.1:${WMS_API_PORT:-8080}/healthz"
-WEB_HEALTH="http://127.0.0.1:${WMS_FRONTEND_PORT:-3000}/healthz"
+WEB_HOST="${WMS_BIND_IP:-127.0.0.1}"
+if [[ "$WEB_HOST" == "0.0.0.0" ]]; then
+  WEB_HOST="127.0.0.1"
+fi
+WEB_HEALTH="http://${WEB_HOST}:${WMS_FRONTEND_PORT:-3000}/healthz"
 
 # --- verify ---
 if [[ $RUN_TESTS -eq 1 ]]; then
@@ -116,4 +120,4 @@ else
   log "Skipping push (--no-push)"
 fi
 
-log "Done: commit=$COMMIT_SHA  api=$API_HEALTH  web=http://127.0.0.1:${WMS_FRONTEND_PORT:-3000}"
+log "Done: commit=$COMMIT_SHA  api=$API_HEALTH  web=$WEB_HEALTH"
