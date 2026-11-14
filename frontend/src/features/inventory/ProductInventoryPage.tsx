@@ -42,11 +42,11 @@ export function ProductInventoryPage() {
         description={t('pages.productInventoryDescription')}
         actions={<Link to={`/products/${b.product_id}`}><Button variant="outline">{t('actions.productDetail')}</Button></Link>}
       />
-      <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="p-4"><p className="text-xs uppercase text-slate-500">{t('details.quantity')}</p><p className="text-2xl font-semibold">{formatQty(b.quantity)} {b.unit}</p></Card>
-        <Card className="p-4"><p className="text-xs uppercase text-slate-500">{t('details.minimum')}</p><p className="text-2xl font-semibold">{formatQty(b.min_stock)}</p></Card>
-        {user?.role === 'SUPERVISOR' && <Card className="p-4"><p className="text-xs uppercase text-slate-500">{t('details.stockValue')}</p><p className="text-2xl font-semibold">{formatCurrency(b.stock_value)}</p></Card>}
-        <Card className="p-4"><p className="text-xs uppercase text-slate-500">{t('details.stockHealth')}</p><div className="mt-1"><Badge tone={b.is_low_stock ? 'amber' : 'green'}>{b.is_low_stock ? t('common.lowStock') : t('common.ok')}</Badge></div></Card>
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <Card className="min-w-0 p-3 sm:p-4"><p className="truncate text-[11px] uppercase text-slate-500 sm:text-xs">{t('details.quantity')}</p><p className="truncate text-xl font-semibold sm:text-2xl">{formatQty(b.quantity)} {b.unit}</p></Card>
+        <Card className="min-w-0 p-3 sm:p-4"><p className="truncate text-[11px] uppercase text-slate-500 sm:text-xs">{t('details.minimum')}</p><p className="truncate text-xl font-semibold sm:text-2xl">{formatQty(b.min_stock)}</p></Card>
+        {user?.role === 'SUPERVISOR' && <Card className="min-w-0 p-3 sm:p-4"><p className="truncate text-[11px] uppercase text-slate-500 sm:text-xs">{t('details.stockValue')}</p><p className="truncate text-xl font-semibold sm:text-2xl">{formatCurrency(b.stock_value)}</p></Card>}
+        <Card className="min-w-0 p-3 sm:p-4"><p className="truncate text-[11px] uppercase text-slate-500 sm:text-xs">{t('details.stockHealth')}</p><div className="mt-1"><Badge tone={b.is_low_stock ? 'amber' : 'green'}>{b.is_low_stock ? t('common.lowStock') : t('common.ok')}</Badge></div></Card>
       </div>
       <Card>
         <CardHeader title={t('details.movementHistory')} action={<RangeDatePicker from={from} to={to} onFrom={(v) => { setFrom(v); setPage(1) }} onTo={(v) => { setTo(v); setPage(1) }} />} />

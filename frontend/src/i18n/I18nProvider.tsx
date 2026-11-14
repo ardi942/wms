@@ -77,7 +77,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       value={lang}
       onChange={(e) => setLang(e.target.value as Lang)}
       className={cn(
-        'h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 outline-none focus:border-brand-500',
+        'h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 outline-none focus:border-brand-500 sm:h-8 sm:w-auto sm:text-xs',
         className,
       )}
     >

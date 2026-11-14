@@ -60,7 +60,7 @@ export function ReturnListPage() {
       <Card>
         <FilterBar>
           <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder={t('common.searchNumberOrReason')} />
-          <Select className="h-9 w-48" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
+          <Select className="h-11 w-full sm:h-9 sm:w-48" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
             <option value="">{t('common.allStatuses')}</option>
             {['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED'].map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
           </Select>

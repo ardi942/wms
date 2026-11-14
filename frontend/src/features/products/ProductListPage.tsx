@@ -46,16 +46,16 @@ export function ProductListPage() {
       <Card>
         <FilterBar>
           <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder={t('common.searchSkuOrName')} />
-          <Select className="h-9 w-48" value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setPage(1) }}>
+          <Select className="h-11 w-full sm:h-9 sm:w-48" value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setPage(1) }}>
             <option value="">{t('common.allCategories')}</option>
             {categories.data?.data.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-          <Select className="h-9 w-36" value={active} onChange={(e) => { setActive(e.target.value); setPage(1) }}>
+          <Select className="h-11 w-full sm:h-9 sm:w-36" value={active} onChange={(e) => { setActive(e.target.value); setPage(1) }}>
             <option value="">{t('common.anyStatus')}</option>
             <option value="true">{t('common.active')}</option>
             <option value="false">{t('common.inactive')}</option>
           </Select>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+          <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={lowStock} onChange={(e) => { setLowStock(e.target.checked); setPage(1) }} className="h-4 w-4 rounded border-slate-300" />
             {t('filters.lowStockOnly')}
           </label>

@@ -13,13 +13,13 @@ import type { ChartPoint, Dashboard, LowStockItem, Movement, PendingPreview, Usa
 
 function KPI({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof Package; tone: string }) {
   return (
-    <Card className="flex items-center gap-4 p-4">
-      <div className={`grid h-10 w-10 place-items-center rounded-lg ${tone}`}>
+    <Card className="flex min-w-0 items-center gap-3 p-3 sm:gap-4 sm:p-4">
+      <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg sm:h-10 sm:w-10 ${tone}`}>
         <Icon className="h-5 w-5" />
       </div>
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-        <p className="text-xl font-semibold text-slate-900">{value}</p>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">{label}</p>
+        <p className="truncate text-lg font-semibold text-slate-900 sm:text-xl" title={value}>{value}</p>
       </div>
     </Card>
   )
@@ -76,7 +76,7 @@ function RecentMovementsCard({ title }: { title: string }) {
 function Chart({ data }: { data: ChartPoint[] }) {
   const { t } = useT()
   return (
-    <div className="h-64 p-4">
+    <div className="h-56 p-4 sm:h-64">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -96,13 +96,13 @@ function Supervisor({ data }: { data: Dashboard }) {
   const { t } = useT()
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <KPI label={t('dashboard.activeProducts')} value={formatQty(data.total_products)} icon={Package} tone="bg-blue-50 text-blue-700" />
         <KPI label={t('dashboard.stockUnits')} value={formatQty(data.total_stock_units)} icon={Package} tone="bg-emerald-50 text-emerald-700" />
         <KPI label={t('dashboard.inventoryValue')} value={formatCurrency(Number(data.inventory_value ?? 0))} icon={Wallet} tone="bg-violet-50 text-violet-700" />
         <KPI label={t('dashboard.lowStock')} value={formatQty(data.low_stock_count)} icon={TriangleAlert} tone="bg-amber-50 text-amber-700" />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <KPI label={t('dashboard.incomingToday')} value={formatQty((data.incoming as { today_units: number })?.today_units)} icon={ArrowUpFromLine} tone="bg-emerald-50 text-emerald-700" />
         <KPI label={t('dashboard.outgoingToday')} value={formatQty((data.outgoing as { today_units: number })?.today_units)} icon={ArrowDownToLine} tone="bg-red-50 text-red-700" />
       </div>
@@ -121,7 +121,7 @@ function Admin({ data }: { data: Dashboard }) {
   const preview = (data.pending_preview ?? []) as PendingPreview[]
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <KPI label={t('dashboard.activeProducts')} value={formatQty(data.total_products)} icon={Package} tone="bg-blue-50 text-blue-700" />
         <KPI label={t('dashboard.stockUnits')} value={formatQty(data.total_stock_units)} icon={Package} tone="bg-emerald-50 text-emerald-700" />
         <KPI label={t('dashboard.lowStock')} value={formatQty(data.low_stock_count)} icon={TriangleAlert} tone="bg-amber-50 text-amber-700" />
@@ -133,9 +133,9 @@ function Admin({ data }: { data: Dashboard }) {
           {low.length === 0 ? <p className="px-5 py-6 text-sm text-slate-500">{t('empty.allAboveMinimum')}</p> : (
             <ul className="divide-y divide-slate-100">
               {low.map((p) => (
-                <li key={p.product_id} className="flex items-center justify-between px-5 py-3 text-sm">
-                  <span><span className="font-medium">{p.sku}</span> — {p.name}</span>
-                  <span className="text-amber-700">{formatQty(p.quantity)} / {formatQty(p.min_stock)}</span>
+                <li key={p.product_id} className="flex items-start justify-between gap-3 px-5 py-3 text-sm">
+                  <span className="min-w-0 break-words"><span className="font-medium">{p.sku}</span> — {p.name}</span>
+                  <span className="shrink-0 text-right text-amber-700">{formatQty(p.quantity)} / {formatQty(p.min_stock)}</span>
                 </li>
               ))}
             </ul>
@@ -167,7 +167,7 @@ function Department({ data }: { data: Dashboard }) {
   const usage = (data.usage_last_30d ?? []) as UsageReportRow[]
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <KPI label={t('dashboard.availableProducts')} value={formatQty(data.available_products)} icon={Package} tone="bg-blue-50 text-blue-700" />
         <KPI label={t('dashboard.myPendingRequests')} value={formatQty(data.my_pending_requests)} icon={ClipboardList} tone="bg-amber-50 text-amber-700" />
         <KPI label={t('dashboard.fulfilled')} value={formatQty(data.my_fulfilled_requests)} icon={ArrowUpFromLine} tone="bg-emerald-50 text-emerald-700" />
@@ -178,9 +178,9 @@ function Department({ data }: { data: Dashboard }) {
         {low.length === 0 ? <p className="px-5 py-6 text-sm text-slate-500">{t('empty.allAboveMinimum')}</p> : (
           <ul className="divide-y divide-slate-100">
             {low.map((p) => (
-              <li key={p.product_id} className="flex items-center justify-between px-5 py-3 text-sm">
-                <span><span className="font-medium">{p.sku}</span> — {p.name}</span>
-                <span className="text-amber-700">{formatQty(p.quantity)} / {formatQty(p.min_stock)}</span>
+              <li key={p.product_id} className="flex items-start justify-between gap-3 px-5 py-3 text-sm">
+                <span className="min-w-0 break-words"><span className="font-medium">{p.sku}</span> — {p.name}</span>
+                <span className="shrink-0 text-right text-amber-700">{formatQty(p.quantity)} / {formatQty(p.min_stock)}</span>
               </li>
             ))}
           </ul>
@@ -189,16 +189,16 @@ function Department({ data }: { data: Dashboard }) {
       <Card>
         <CardHeader title={t('dashboard.myDepartmentUsage')} action={<Link className="text-sm text-brand-600" to="/reports?tab=department-usage">{t('dashboard.viewReport')}</Link>} />
         {usage.length === 0 ? <p className="px-5 py-6 text-sm text-slate-500">{t('empty.noUsageYet')}</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-2">{t('details.product')}</th><th className="px-4 py-2">{t('details.issued')}</th><th className="px-4 py-2">{t('details.returned')}</th><th className="px-4 py-2">{t('details.netUsed')}</th></tr></thead>
-              <tbody className="divide-y divide-slate-100">
-                {usage.map((u) => (
-                  <tr key={`${u.sku}-${u.department}`}><td className="px-4 py-2">{u.sku} — {u.product}</td><td className="px-4 py-2">{formatQty(u.issued_units)}</td><td className="px-4 py-2">{formatQty(u.returned_units)}</td><td className="px-4 py-2">{formatQty(u.net_used)}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={[
+              { key: 'product', header: t('details.product'), render: (u) => `${u.sku} — ${u.product}` },
+              { key: 'issued', header: t('details.issued'), render: (u) => formatQty(u.issued_units) },
+              { key: 'returned', header: t('details.returned'), render: (u) => formatQty(u.returned_units) },
+              { key: 'net', header: t('details.netUsed'), render: (u) => formatQty(u.net_used) },
+            ]}
+            rows={usage}
+            getRowKey={(u) => `${u.sku}-${u.department}`}
+          />
         )}
       </Card>
       <RecentMovementsCard title={t('dashboard.recentDepartmentMovements')} />

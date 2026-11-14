@@ -200,25 +200,25 @@ export function ReportsPage() {
         <FilterBar>
           {(tab === 'inventory' || tab === 'movements') && <SearchInput value={search} onChange={setSearch} placeholder={t('common.searchProduct')} />}
           {(tab === 'inventory' || tab === 'low-stock') && (
-            <Select className="h-9 w-44" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <Select className="h-11 w-full sm:h-9 sm:w-44" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">{t('common.allCategories')}</option>
               {categories.data?.data.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           )}
           {tab === 'inventory' && (
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" checked={lowStock} onChange={(e) => setLowStock(e.target.checked)} className="h-4 w-4 rounded border-slate-300" /> {t('filters.lowStockOnly')}
             </label>
           )}
           {tab === 'movements' && (
-            <Select className="h-9 w-32" value={movementType} onChange={(e) => setMovementType(e.target.value)}>
+            <Select className="h-11 w-full sm:h-9 sm:w-32" value={movementType} onChange={(e) => setMovementType(e.target.value)}>
               <option value="">{t('common.allTypes')}</option>
               <option value="IN">IN</option>
               <option value="OUT">OUT</option>
             </Select>
           )}
           {tab === 'department-usage' && user?.role !== 'DEPARTMENT_USER' && (
-            <Select className="h-9 w-52" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+            <Select className="h-11 w-full sm:h-9 sm:w-52" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
               <option value="">{t('common.allDepartments')}</option>
               {departments.data?.data.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </Select>

@@ -25,7 +25,7 @@ export function Button({ className, variant = 'primary', size = 'md', loading, d
     <button
       className={cn(
         'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50',
-        size === 'sm' ? 'h-8 px-3 text-xs' : 'h-10 px-4 text-sm',
+        size === 'sm' ? 'h-9 px-3 text-xs sm:h-8' : 'h-11 px-4 text-sm sm:h-10',
         variants[variant],
         className,
       )}
@@ -38,11 +38,12 @@ export function Button({ className, variant = 'primary', size = 'md', loading, d
   )
 }
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, inputMode, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
+      inputMode={inputMode ?? (props.type === 'number' ? 'numeric' : undefined)}
       className={cn(
-        'h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100',
+        'h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-base text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100 sm:h-10 sm:text-sm',
         className,
       )}
       {...props}
@@ -54,7 +55,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={cn(
-        'min-h-24 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100',
+        'min-h-24 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:text-sm',
         className,
       )}
       {...props}
@@ -66,7 +67,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
   return (
     <select
       className={cn(
-        'h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100',
+        'h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-base text-slate-900 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:h-10 sm:text-sm',
         className,
       )}
       {...props}

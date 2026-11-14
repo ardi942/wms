@@ -16,7 +16,7 @@ body,
 }
 
 body {
-  @apply bg-slate-100 text-slate-800 antialiased;
+  @apply min-h-dvh overflow-x-hidden bg-slate-100 text-slate-800 antialiased;
 }
 
 * {

@@ -154,11 +154,11 @@ export function ReturnDetailPage() {
       </ConfirmDialog>
 
       {rejectOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <Card className="w-full max-w-md p-5">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 sm:items-center">
+          <Card className="max-h-[90dvh] w-full max-w-md overflow-y-auto p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-5">
             <h3 className="text-lg font-semibold">{t('dialogs.rejectReturn')}</h3>
             <Textarea className="mt-3" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('dialogs.reasonPlaceholder')} />
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
               <Button variant="outline" onClick={() => setRejectOpen(false)}>{t('common.cancel')}</Button>
               <Button variant="danger" loading={saving} onClick={reject}>{t('actions.reject')}</Button>
             </div>
@@ -167,8 +167,8 @@ export function ReturnDetailPage() {
       )}
 
       {confirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <Card className="max-h-[90vh] w-full max-w-2xl overflow-y-auto p-5">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 sm:items-center">
+          <Card className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-5">
             <h3 className="text-lg font-semibold">{t('dialogs.confirmReturn')}</h3>
             <p className="mt-1 text-sm text-slate-500">{t('dialogs.confirmReturnBody')}</p>
             <div className="mt-4 space-y-3">
@@ -188,7 +188,7 @@ export function ReturnDetailPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
               <Button variant="outline" onClick={() => setConfirmOpen(false)}>{t('common.cancel')}</Button>
               <Button loading={saving} onClick={confirm}>{t('dialogs.confirmReturn')}</Button>
             </div>

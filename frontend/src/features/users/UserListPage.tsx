@@ -38,7 +38,7 @@ export function UserListPage() {
       <Card>
         <FilterBar>
           <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder={t('common.searchNameOrEmail')} />
-          <Select className="h-9 w-36" value={active} onChange={(e) => { setActive(e.target.value); setPage(1) }}>
+          <Select className="h-11 w-full sm:h-9 sm:w-36" value={active} onChange={(e) => { setActive(e.target.value); setPage(1) }}>
             <option value="">{t('common.anyStatus')}</option>
             <option value="true">{t('common.active')}</option>
             <option value="false">{t('common.inactive')}</option>

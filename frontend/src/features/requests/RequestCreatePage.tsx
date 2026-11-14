@@ -99,7 +99,7 @@ export function RequestCreatePage() {
                       >
                         <Input type="number" min={1} {...register(`items.${index}.requested_qty`)} />
                       </Field>
-                      <div className="flex items-end">
+                      <div className="flex items-end justify-end">
                         <Button type="button" variant="ghost" aria-label={t('actions.removeLine')} disabled={fields.length === 1} onClick={() => remove(index)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -126,7 +126,7 @@ export function RequestCreatePage() {
               })}
             </div>
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
             <Button type="button" variant="outline" onClick={() => navigate(-1)}>{t('common.cancel')}</Button>
             <Button type="submit" loading={submitting}>{t('actions.submitRequest')}</Button>
           </div>

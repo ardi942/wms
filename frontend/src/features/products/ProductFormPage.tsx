@@ -250,7 +250,7 @@ export function ProductFormPage() {
           >
             <Textarea id="description" {...register('description')} />
           </Field>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
             <Button type="button" variant="outline" onClick={() => navigate(-1)}>{t('common.cancel')}</Button>
             <Button type="submit" loading={submitting}>{editing ? t('actions.saveChanges') : t('actions.createProduct')}</Button>
           </div>

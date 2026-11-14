@@ -13,6 +13,7 @@ export const dictionaries = {
       reports: 'Reports',
       users: 'Users',
       notifications: 'Notifications',
+      mainNavigation: 'Main navigation',
     },
     common: {
       back: 'Back',
@@ -75,6 +76,8 @@ export const dictionaries = {
       collapse: 'Collapse row',
       lineCount: '{count} line(s)',
       unit: 'Unit',
+      more: 'More',
+      details: 'Details',
     },
     fields: {
       sku: 'Item code (SKU)',
@@ -323,6 +326,8 @@ export const dictionaries = {
       adjustStock: 'Adjust stock',
       requestProduct: 'Request this product',
       autoGenerate: 'Auto-generate',
+      openMenu: 'Open menu',
+      closeMenu: 'Close menu',
     },
     login: {
       brand: 'Warehouse Management',
@@ -461,6 +466,7 @@ export const dictionaries = {
       reports: 'Laporan',
       users: 'Pengguna',
       notifications: 'Notifikasi',
+      mainNavigation: 'Navigasi utama',
     },
     common: {
       back: 'Kembali',
@@ -523,6 +529,8 @@ export const dictionaries = {
       collapse: 'Tutup baris',
       lineCount: '{count} baris',
       unit: 'Satuan',
+      more: 'Lainnya',
+      details: 'Detail',
     },
     fields: {
       sku: 'Kode barang (SKU)',
@@ -771,6 +779,8 @@ export const dictionaries = {
       adjustStock: 'Sesuaikan stok',
       requestProduct: 'Minta produk ini',
       autoGenerate: 'Buat otomatis',
+      openMenu: 'Buka menu',
+      closeMenu: 'Tutup menu',
     },
     login: {
       brand: 'Manajemen Gudang',
@@ -908,6 +918,7 @@ export const dictionaries = {
       reports: '报表',
       users: '用户',
       notifications: '通知',
+      mainNavigation: '主导航',
     },
     common: {
       back: '返回',
@@ -970,6 +981,8 @@ export const dictionaries = {
       collapse: '收起行',
       lineCount: '{count} 行',
       unit: '单位',
+      more: '更多',
+      details: '详情',
     },
     fields: {
       sku: '物料编码 (SKU)',
@@ -1218,6 +1231,8 @@ export const dictionaries = {
       adjustStock: '调整库存',
       requestProduct: '申请此产品',
       autoGenerate: '自动生成',
+      openMenu: '打开菜单',
+      closeMenu: '关闭菜单',
     },
     login: {
       brand: '仓库管理',
