@@ -1,0 +1,130 @@
+package inventory
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"wms/backend/internal/httpx"
+	"wms/backend/internal/user"
+)
+
+type Handler struct{ svc *Service }
+
+func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+
+func parseUUIDQuery(c *gin.Context, key string) (*uuid.UUID, *httpx.AppError) {
+	raw := c.Query(key)
+	if raw == "" {
+		return nil, nil
+	}
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		return nil, httpx.Validation("validation failed", map[string]string{key: "must be a valid UUID"})
+	}
+	return &id, nil
+}
+
+func (h *Handler) List(c *gin.Context) {
+	p, perr := httpx.ParsePagination(c)
+	if perr != nil {
+		httpx.WriteError(c, perr)
+		return
+	}
+	categoryID, cerr := parseUUIDQuery(c, "category_id")
+	if cerr != nil {
+		httpx.WriteError(c, cerr)
+		return
+	}
+	items, total, err := h.svc.ListBalances(c.Request.Context(), BalanceFilter{
+		Search: c.Query("search"), CategoryID: categoryID,
+		LowStock: c.Query("low_stock") == "true", Page: p.Page, PageSize: p.PageSize,
+		Role: httpx.MustIdentity(c).Role,
+	})
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	httpx.List(c, items, httpx.NewMeta(p, total))
+}
+
+func (h *Handler) Get(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("productId"))
+	if err != nil {
+		httpx.WriteError(c, httpx.NotFound("product not found"))
+		return
+	}
+	dto, serr := h.svc.GetBalance(c.Request.Context(), id, httpx.MustIdentity(c).Role)
+	if serr != nil {
+		httpx.WriteError(c, serr)
+		return
+	}
+	httpx.OK(c, dto)
+}
+
+func (h *Handler) Movements(c *gin.Context) {
+	p, perr := httpx.ParsePagination(c)
+	if perr != nil {
+		httpx.WriteError(c, perr)
+		return
+	}
+	productID, perr2 := parseUUIDQuery(c, "product_id")
+	if perr2 != nil {
+		httpx.WriteError(c, perr2)
+		return
+	}
+	departmentID, derr := parseUUIDQuery(c, "department_id")
+	if derr != nil {
+		httpx.WriteError(c, derr)
+		return
+	}
+	identity := httpx.MustIdentity(c)
+	if identity.Role == user.RoleDepartmentUser {
+		if identity.DepartmentID == nil {
+			httpx.WriteError(c, httpx.Forbidden("department user has no department"))
+			return
+		}
+		departmentID = identity.DepartmentID
+	}
+	from, to, daterr := httpx.ParseDateRange(c)
+	if daterr != nil {
+		httpx.WriteError(c, daterr)
+		return
+	}
+	items, total, err := h.svc.ListMovements(c.Request.Context(), MovementFilter{
+		ProductID: productID, MovementType: c.Query("movement_type"),
+		ReferenceType: c.Query("reference_type"), DepartmentID: departmentID,
+		DateFrom: from, DateTo: to, Page: p.Page, PageSize: p.PageSize,
+	})
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	httpx.List(c, items, httpx.NewMeta(p, total))
+}
+
+func (h *Handler) Receive(c *gin.Context) {
+	var in ReceiptInput
+	if err := httpx.BindJSON(c, &in); err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	dto, err := h.svc.Receive(c.Request.Context(), in, httpx.MustIdentity(c).ID)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	httpx.Created(c, dto)
+}
+
+func (h *Handler) Adjust(c *gin.Context) {
+	var in AdjustmentInput
+	if err := httpx.BindJSON(c, &in); err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	dto, err := h.svc.Adjust(c.Request.Context(), in, httpx.MustIdentity(c).ID)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	httpx.Created(c, dto)
+}

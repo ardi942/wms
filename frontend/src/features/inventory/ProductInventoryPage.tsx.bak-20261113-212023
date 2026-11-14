@@ -1,0 +1,54 @@
+import { useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { inventoryApi } from '../../api/endpoints'
+import { Button, Card, CardHeader } from '../../components/ui'
+import { DataTable, ErrorState, Loading, PageHeader, Pagination, RangeDatePicker, StatusBadge, type Column } from '../../components/common'
+import { formatCurrency, formatDateTime, formatQty } from '../../lib/format'
+import type { Movement } from '../../types'
+
+export function ProductInventoryPage() {
+  const { productId } = useParams()
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const filters = { product_id: productId, date_from: from, date_to: to, page, page_size: pageSize }
+  const balance = useQuery({ queryKey: ['inventoryProduct', productId], queryFn: () => inventoryApi.product(productId!) })
+  const movements = useQuery({ queryKey: ['movements', filters], queryFn: () => inventoryApi.movements(filters) })
+
+  if (balance.isLoading) return <Loading />
+  if (balance.error) return <ErrorState error={balance.error} onRetry={() => balance.refetch()} />
+  const b = balance.data!.data
+
+  const columns: Column<Movement>[] = [
+    { key: 'when', header: 'When', render: (m) => formatDateTime(m.created_at) },
+    { key: 'type', header: 'Type', render: (m) => <span className={m.movement_type === 'IN' ? 'text-emerald-600' : 'text-red-600'}>{m.movement_type}</span> },
+    { key: 'qty', header: 'Change', render: (m) => `${m.quantity_delta > 0 ? '+' : ''}${formatQty(m.quantity_delta)}` },
+    { key: 'balance', header: 'Balance after', render: (m) => formatQty(m.balance_after) },
+    { key: 'ref', header: 'Reference', render: (m) => m.reference_number },
+    { key: 'dept', header: 'Department', render: (m) => m.department?.name ?? '—' },
+    { key: 'by', header: 'By', render: (m) => m.actor.full_name },
+  ]
+
+  return (
+    <div>
+      <PageHeader
+        title={`${b.sku} — ${b.name}`}
+        description="Inventory balance and full movement history."
+        actions={<Link to={`/products/${b.product_id}`}><Button variant="outline">Product detail</Button></Link>}
+      />
+      <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="p-4"><p className="text-xs uppercase text-slate-500">Quantity</p><p className="text-2xl font-semibold">{formatQty(b.quantity)} {b.unit}</p></Card>
+        <Card className="p-4"><p className="text-xs uppercase text-slate-500">Minimum</p><p className="text-2xl font-semibold">{formatQty(b.min_stock)}</p></Card>
+        <Card className="p-4"><p className="text-xs uppercase text-slate-500">Stock value</p><p className="text-2xl font-semibold">{formatCurrency(b.stock_value)}</p></Card>
+        <Card className="p-4"><p className="text-xs uppercase text-slate-500">Stock health</p><div className="mt-1">{b.is_low_stock ? <StatusBadge status="PENDING" /> : <StatusBadge status="FULFILLED" />}</div></Card>
+      </div>
+      <Card>
+        <CardHeader title="Movement history" action={<RangeDatePicker from={from} to={to} onFrom={(v) => { setFrom(v); setPage(1) }} onTo={(v) => { setTo(v); setPage(1) }} />} />
+        <DataTable columns={columns} rows={movements.data?.items ?? []} loading={movements.isLoading} error={movements.error} onRetry={() => movements.refetch()} emptyTitle="No movements in this range" />
+        {movements.data && <Pagination meta={movements.data.meta} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />}
+      </Card>
+    </div>
+  )
+}

@@ -1,0 +1,163 @@
+name: wms
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wms}
+      POSTGRES_DB: ${POSTGRES_DB:-wms}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wms} -d ${POSTGRES_DB:-wms}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [wms]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+    networks: [wms]
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-wms}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-wms}
+    ports:
+      - "15672:15672"
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [wms]
+
+  migrate:
+    image: migrate/migrate:v4.20.1
+    volumes:
+      - ./backend/migrations:/migrations:ro
+    command: ["-path=/migrations", "-database", "${DATABASE_URL:-postgres://wms:wms@postgres:5432/wms?sslmode=disable}", "up"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks: [wms]
+
+  seed:
+    build:
+      context: ./backend
+    command: ["/app/seed", "--skip-migrate"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://wms:wms@postgres:5432/wms?sslmode=disable}
+      SEED_DEMO: ${SEED_DEMO:-true}
+      MIGRATIONS_PATH: /app/migrations
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks: [wms]
+
+  backend:
+    build:
+      context: ./backend
+    command: ["/app/api"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://wms:wms@postgres:5432/wms?sslmode=disable}
+      API_PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_TTL: ${JWT_TTL:-12h}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://${RABBITMQ_USER:-wms}:${RABBITMQ_PASSWORD:-wms}@rabbitmq:5672/}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MIGRATIONS_PATH: /app/migrations
+    ports:
+      - "${WMS_API_PORT:-8080}:8080"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+    networks: [wms]
+
+  worker:
+    build:
+      context: ./backend
+    command: ["/app/worker"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://wms:wms@postgres:5432/wms?sslmode=disable}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://${RABBITMQ_USER:-wms}:${RABBITMQ_PASSWORD:-wms}@rabbitmq:5672/}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-8}
+      OUTBOX_POLL_INTERVAL: ${OUTBOX_POLL_INTERVAL:-1s}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    stop_grace_period: 20s
+    restart: unless-stopped
+    networks: [wms]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+    ports:
+      - "${WMS_FRONTEND_PORT:-3000}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+    networks: [wms]
+
+volumes:
+  pgdata:
+  rabbitmqdata:
+
+networks:
+  wms:
+    driver: bridge

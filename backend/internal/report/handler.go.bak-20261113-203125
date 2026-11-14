@@ -1,0 +1,260 @@
+package report
+
+import (
+	"encoding/csv"
+	"fmt"
+	"net/http"
+	"reflect"
+	"strconv"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"wms/backend/internal/httpx"
+	"wms/backend/internal/user"
+)
+
+type Handler struct{ svc *Service }
+
+func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+
+func (h *Handler) Dashboard(c *gin.Context) {
+	id := httpx.MustIdentity(c)
+	out, err := h.svc.Dashboard(c.Request.Context(), &httpxIdentity{
+		ID: id.ID, Role: id.Role, DepartmentID: id.DepartmentID,
+	})
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	httpx.OK(c, out)
+}
+
+func (h *Handler) Inventory(c *gin.Context) {
+	f, err := parseFilter(c)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	rows, qerr := h.svc.Inventory(c.Request.Context(), f)
+	if qerr != nil {
+		httpx.WriteError(c, qerr)
+		return
+	}
+	listJSON(c, rows)
+}
+
+func (h *Handler) Movements(c *gin.Context) {
+	f, err := parseFilter(c)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	if raw := c.Query("movement_type"); raw != "" {
+		f.MovementType = raw
+	}
+	rows, qerr := h.svc.Movements(c.Request.Context(), f)
+	if qerr != nil {
+		httpx.WriteError(c, qerr)
+		return
+	}
+	listJSON(c, rows)
+}
+
+func (h *Handler) DepartmentUsage(c *gin.Context) {
+	f, err := parseFilter(c)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	id := httpx.MustIdentity(c)
+	if id.Role == user.RoleDepartmentUser {
+		f.DepartmentID = id.DepartmentID
+	}
+	rows, qerr := h.svc.DepartmentUsage(c.Request.Context(), f)
+	if qerr != nil {
+		httpx.WriteError(c, qerr)
+		return
+	}
+	listJSON(c, rows)
+}
+
+func (h *Handler) LowStock(c *gin.Context) {
+	f, err := parseFilter(c)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	rows, qerr := h.svc.LowStock(c.Request.Context(), f.CategoryID)
+	if qerr != nil {
+		httpx.WriteError(c, qerr)
+		return
+	}
+	listJSON(c, rows)
+}
+
+func (h *Handler) Export(c *gin.Context) {
+	reportName := c.Query("report")
+	if reportName == "" {
+		httpx.WriteError(c, httpx.Validation("validation failed", map[string]string{"report": "is required"}))
+		return
+	}
+	id := httpx.MustIdentity(c)
+	if id.Role == user.RoleDepartmentUser && reportName != "department-usage" {
+		httpx.WriteError(c, httpx.Forbidden("department users can only export their department usage"))
+		return
+	}
+	f, err := parseFilter(c)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	if id.Role == user.RoleDepartmentUser {
+		f.DepartmentID = id.DepartmentID
+	}
+	ctx := c.Request.Context()
+	switch reportName {
+	case "inventory":
+		rows, qerr := h.svc.Inventory(ctx, f)
+		if qerr != nil {
+			httpx.WriteError(c, qerr)
+			return
+		}
+		out := make([][]string, 0, len(rows))
+		for _, r := range rows {
+			low := "NO"
+			if r.IsLowStock {
+				low = "YES"
+			}
+			out = append(out, []string{r.SKU, r.Product, r.Category, r.Unit,
+				strconv.Itoa(r.Quantity), strconv.Itoa(r.MinStock), low,
+				formatCost(r.UnitCost), fmt.Sprintf("%.2f", r.StockValue)})
+		}
+		writeCSV(c, "inventory", []string{"SKU", "Product", "Category", "Unit", "Quantity", "Min Stock", "Low Stock", "Unit Cost", "Stock Value"}, out)
+	case "stock-movements":
+		rows, qerr := h.svc.Movements(ctx, f)
+		if qerr != nil {
+			httpx.WriteError(c, qerr)
+			return
+		}
+		out := make([][]string, 0, len(rows))
+		for _, r := range rows {
+			dept := ""
+			if r.Department != nil {
+				dept = r.Department.Name
+			}
+			out = append(out, []string{
+				r.CreatedAt.UTC().Format(time.RFC3339), r.Product.SKU, r.Product.Name,
+				r.MovementType, strconv.Itoa(r.QuantityDelta), strconv.Itoa(r.BalanceAfter),
+				r.ReferenceType, r.ReferenceNumber, dept, r.Actor.FullName,
+				deref(r.Supplier), deref(r.Notes), deref(r.Reason),
+			})
+		}
+		writeCSV(c, "stock-movements", []string{"Date (UTC)", "SKU", "Product", "Type", "Quantity Delta", "Balance After", "Reference Type", "Reference Number", "Department", "Performed By", "Supplier", "Notes", "Reason"}, out)
+	case "department-usage":
+		rows, qerr := h.svc.DepartmentUsage(ctx, f)
+		if qerr != nil {
+			httpx.WriteError(c, qerr)
+			return
+		}
+		out := make([][]string, 0, len(rows))
+		for _, r := range rows {
+			last := ""
+			if r.LastIssuedAt != nil {
+				last = r.LastIssuedAt.UTC().Format(time.RFC3339)
+			}
+			out = append(out, []string{r.Department, r.SKU, r.Product,
+				strconv.Itoa(r.IssuedUnits), strconv.Itoa(r.ReturnedUnits), strconv.Itoa(r.NetUsed), last})
+		}
+		writeCSV(c, "department-usage", []string{"Department", "SKU", "Product", "Issued Units", "Returned Units", "Net Used", "Last Issued At"}, out)
+	case "low-stock":
+		rows, qerr := h.svc.LowStock(ctx, f.CategoryID)
+		if qerr != nil {
+			httpx.WriteError(c, qerr)
+			return
+		}
+		out := make([][]string, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, []string{r.SKU, r.Product, r.Category,
+				strconv.Itoa(r.Quantity), strconv.Itoa(r.MinStock), strconv.Itoa(r.Shortage)})
+		}
+		writeCSV(c, "low-stock", []string{"SKU", "Product", "Category", "Quantity", "Min Stock", "Shortage"}, out)
+	default:
+		httpx.WriteError(c, httpx.Validation("validation failed", map[string]string{
+			"report": "must be one of inventory, stock-movements, department-usage, low-stock",
+		}))
+	}
+}
+
+func parseFilter(c *gin.Context) (Filter, error) {
+	f := Filter{
+		Search: c.Query("search"), LowStock: c.Query("low_stock") == "true",
+		MovementType: c.Query("movement_type"), Limit: 5000,
+	}
+	if raw := c.Query("category_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return f, httpx.Validation("validation failed", map[string]string{"category_id": "must be a valid UUID"})
+		}
+		f.CategoryID = &id
+	}
+	if raw := c.Query("department_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return f, httpx.Validation("validation failed", map[string]string{"department_id": "must be a valid UUID"})
+		}
+		f.DepartmentID = &id
+	}
+	if raw := c.Query("product_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return f, httpx.Validation("validation failed", map[string]string{"product_id": "must be a valid UUID"})
+		}
+		f.ProductID = &id
+	}
+	from, to, derr := httpx.ParseDateRange(c)
+	if derr != nil {
+		return f, derr
+	}
+	f.DateFrom, f.DateTo = from, to
+	return f, nil
+}
+
+func listJSON(c *gin.Context, data any) {
+	count := 0
+	rv := reflect.ValueOf(data)
+	if rv.IsValid() && rv.Kind() == reflect.Slice {
+		count = rv.Len()
+	}
+	httpx.List(c, data, httpx.Meta{Page: 1, PageSize: count, Total: int64(count), TotalPages: 1})
+}
+
+func writeCSV(c *gin.Context, name string, headers []string, rows [][]string) {
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s.csv"`, name, time.Now().UTC().Format("20060102")))
+	c.Status(http.StatusOK)
+	w := csv.NewWriter(c.Writer)
+	if err := w.Write(headers); err != nil {
+		return
+	}
+	for _, row := range rows {
+		if err := w.Write(row); err != nil {
+			return
+		}
+	}
+	w.Flush()
+}
+
+func formatCost(v *float64) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%.2f", *v)
+}
+
+func deref(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}

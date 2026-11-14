@@ -1,0 +1,166 @@
+import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { Download } from 'lucide-react'
+import { downloadCsv, saveBlob } from '../../api/client'
+import { referenceApi, reportApi } from '../../api/endpoints'
+import { useAuth } from '../../auth/AuthProvider'
+import { Button, Card, Select } from '../../components/ui'
+import { DataTable, DateRangeFilter, FilterBar, PageHeader, SearchInput, type Column } from '../../components/common'
+import { cn } from '../../lib/utils'
+import { formatCurrency, formatDateTime, formatQty } from '../../lib/format'
+import type { InventoryReportRow, LowStockReportRow, Movement, UsageReportRow } from '../../types'
+
+type Tab = 'inventory' | 'movements' | 'department-usage' | 'low-stock'
+
+const allTabs: Array<{ id: Tab; label: string; roles: string[] }> = [
+  { id: 'inventory', label: 'Inventory', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN'] },
+  { id: 'movements', label: 'Stock Movements', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN'] },
+  { id: 'department-usage', label: 'Department Usage', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+  { id: 'low-stock', label: 'Low Stock', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN'] },
+]
+
+export function ReportsPage() {
+  const { user } = useAuth()
+  const [params, setParams] = useSearchParams()
+  const tabs = allTabs.filter((t) => user && t.roles.includes(user.role))
+  const requested = params.get('tab') as Tab | null
+  const tab: Tab = tabs.some((t) => t.id === requested) ? (requested as Tab) : tabs[0]?.id ?? 'department-usage'
+  const [search, setSearch] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
+  const [movementType, setMovementType] = useState('')
+  const [lowStock, setLowStock] = useState(false)
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  const categories = useQuery({ queryKey: ['categories'], queryFn: () => referenceApi.categories() })
+  const departments = useQuery({ queryKey: ['departments'], queryFn: () => referenceApi.departments() })
+
+  const filters = {
+    search, category_id: categoryId, department_id: departmentId,
+    movement_type: movementType, low_stock: lowStock || undefined,
+    date_from: from, date_to: to, page_size: 5000,
+  }
+
+  const query = useQuery({
+    queryKey: ['reports', tab, filters],
+    queryFn: async () => {
+      switch (tab) {
+        case 'inventory': return (await reportApi.inventory(filters)).items as unknown[]
+        case 'movements': return (await reportApi.movements(filters)).items as unknown[]
+        case 'department-usage': return (await reportApi.departmentUsage(filters)).items as unknown[]
+        case 'low-stock': return (await reportApi.lowStock(filters)).items as unknown[]
+      }
+    },
+  })
+
+  const exportCsv = async () => {
+    setExporting(true)
+    try {
+      const blob = await downloadCsv('/reports/export', { ...filters, report: tab })
+      saveBlob(blob, `${tab}-${new Date().toISOString().slice(0, 10)}.csv`)
+      toast.success('Export downloaded')
+    } catch {
+      toast.error('Export failed')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const inventoryColumns: Column<InventoryReportRow>[] = [
+    { key: 'sku', header: 'SKU', render: (r) => r.sku },
+    { key: 'product', header: 'Product', render: (r) => r.product },
+    { key: 'category', header: 'Category', render: (r) => r.category },
+    { key: 'qty', header: 'Quantity', render: (r) => <span className={r.is_low_stock ? 'text-amber-700' : ''}>{formatQty(r.quantity)} {r.unit}</span> },
+    { key: 'min', header: 'Min', render: (r) => formatQty(r.min_stock) },
+    { key: 'cost', header: 'Unit cost', render: (r) => formatCurrency(r.unit_cost) },
+    { key: 'value', header: 'Stock value', render: (r) => formatCurrency(r.stock_value) },
+  ]
+  const movementColumns: Column<Movement>[] = [
+    { key: 'when', header: 'When', render: (m) => formatDateTime(m.created_at) },
+    { key: 'product', header: 'Product', render: (m) => `${m.product.sku} — ${m.product.name}` },
+    { key: 'type', header: 'Type', render: (m) => m.movement_type },
+    { key: 'qty', header: 'Change', render: (m) => `${m.quantity_delta > 0 ? '+' : ''}${formatQty(m.quantity_delta)}` },
+    { key: 'balance', header: 'Balance', render: (m) => formatQty(m.balance_after) },
+    { key: 'ref', header: 'Reference', render: (m) => m.reference_number },
+    { key: 'dept', header: 'Department', render: (m) => m.department?.name ?? '—' },
+  ]
+  const usageColumns: Column<UsageReportRow>[] = [
+    { key: 'dept', header: 'Department', render: (r) => r.department },
+    { key: 'sku', header: 'SKU', render: (r) => r.sku },
+    { key: 'product', header: 'Product', render: (r) => r.product },
+    { key: 'issued', header: 'Issued', render: (r) => formatQty(r.issued_units) },
+    { key: 'returned', header: 'Returned', render: (r) => formatQty(r.returned_units) },
+    { key: 'net', header: 'Net used', render: (r) => formatQty(r.net_used) },
+    { key: 'last', header: 'Last issued', render: (r) => formatDateTime(r.last_issued_at) },
+  ]
+  const lowColumns: Column<LowStockReportRow>[] = [
+    { key: 'sku', header: 'SKU', render: (r) => r.sku },
+    { key: 'product', header: 'Product', render: (r) => r.product },
+    { key: 'category', header: 'Category', render: (r) => r.category },
+    { key: 'qty', header: 'Quantity', render: (r) => formatQty(r.quantity) },
+    { key: 'min', header: 'Min', render: (r) => formatQty(r.min_stock) },
+    { key: 'shortage', header: 'Shortage', render: (r) => <span className="font-medium text-red-600">{formatQty(r.shortage)}</span> },
+  ]
+
+  const columns = (
+    tab === 'inventory' ? inventoryColumns :
+    tab === 'movements' ? movementColumns :
+    tab === 'department-usage' ? usageColumns : lowColumns
+  ) as Column<unknown>[]
+
+  return (
+    <div>
+      <PageHeader
+        title="Reports"
+        description="Operational reports with CSV export."
+        actions={<Button variant="outline" loading={exporting} onClick={exportCsv}><Download className="h-4 w-4" /> Export CSV</Button>}
+      />
+      <div className="mb-4 flex flex-wrap gap-2">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => { setParams({ tab: t.id }); }}
+            className={cn('rounded-full px-4 py-1.5 text-sm font-medium transition-colors', tab === t.id ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-200')}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <Card>
+        <FilterBar>
+          {(tab === 'inventory' || tab === 'movements') && <SearchInput value={search} onChange={setSearch} placeholder="Search product…" />}
+          {(tab === 'inventory' || tab === 'low-stock') && (
+            <Select className="h-9 w-44" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <option value="">All categories</option>
+              {categories.data?.data.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          )}
+          {tab === 'inventory' && (
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={lowStock} onChange={(e) => setLowStock(e.target.checked)} className="h-4 w-4 rounded border-slate-300" /> Low stock only
+            </label>
+          )}
+          {tab === 'movements' && (
+            <Select className="h-9 w-32" value={movementType} onChange={(e) => setMovementType(e.target.value)}>
+              <option value="">All types</option>
+              <option value="IN">IN</option>
+              <option value="OUT">OUT</option>
+            </Select>
+          )}
+          {tab === 'department-usage' && user?.role !== 'DEPARTMENT_USER' && (
+            <Select className="h-9 w-52" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+              <option value="">All departments</option>
+              {departments.data?.data.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </Select>
+          )}
+          {tab !== 'low-stock' && <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />}
+        </FilterBar>
+        <DataTable columns={columns} rows={(query.data ?? []) as never[]} loading={query.isLoading} error={query.error} onRetry={() => query.refetch()} emptyTitle="No report rows" />
+      </Card>
+    </div>
+  )
+}

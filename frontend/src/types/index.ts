@@ -1,0 +1,269 @@
+export type Role = 'SUPERVISOR' | 'WAREHOUSE_ADMIN' | 'DEPARTMENT_USER'
+
+export interface DepartmentRef {
+  id: string
+  code: string
+  name: string
+}
+
+export interface ActorRef {
+  id: string
+  full_name: string
+}
+
+export interface ProductRef {
+  id: string
+  sku: string
+  name: string
+  unit?: string
+}
+
+export interface User {
+  id: string
+  email: string
+  full_name: string
+  role: Role
+  department: DepartmentRef | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface LoginResult {
+  token: string
+  user: User
+}
+
+export interface Category {
+  id: string
+  name: string
+}
+
+export interface Unit {
+  id: string
+  code: string
+  name: string
+}
+
+export interface Department extends DepartmentRef {}
+
+export interface Product {
+  id: string
+  sku: string
+  name: string
+  description: string | null
+  category: Category
+  unit: Unit
+  min_stock: number
+  unit_cost: number | null
+  is_active: boolean
+  current_stock: number
+  is_low_stock: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryBalance {
+  product_id: string
+  sku: string
+  name: string
+  category: string
+  unit: string
+  quantity: number
+  min_stock: number
+  is_low_stock: boolean
+  unit_cost: number | null
+  stock_value: number
+}
+
+export interface Movement {
+  id: string
+  product: ProductRef
+  movement_type: 'IN' | 'OUT'
+  quantity_delta: number
+  balance_after: number
+  reference_type: string
+  reference_id: string
+  reference_number: string
+  department: DepartmentRef | null
+  actor: ActorRef
+  supplier: string | null
+  notes: string | null
+  reason: string | null
+  created_at: string
+}
+
+export type RequestStatus = 'PENDING' | 'PARTIALLY_FULFILLED' | 'FULFILLED' | 'REJECTED' | 'CANCELLED'
+export type ReturnStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED'
+
+export interface RequestItem {
+  id: string
+  product: ProductRef
+  requested_qty: number
+  issued_qty: number
+  remaining_qty: number
+}
+
+export interface StockRequest {
+  id: string
+  request_number: string
+  status: RequestStatus
+  department: DepartmentRef
+  requested_by: ActorRef
+  purpose: string
+  rejection_reason: string | null
+  processed_by: ActorRef | null
+  processed_at: string | null
+  items: RequestItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface StockRequestList {
+  id: string
+  request_number: string
+  status: RequestStatus
+  department: DepartmentRef
+  requested_by: ActorRef
+  purpose: string
+  item_count: number
+  total_requested: number
+  total_issued: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ReturnItem {
+  id: string
+  product: ProductRef
+  requested_qty: number
+  accepted_qty: number
+  remaining_qty: number
+}
+
+export interface StockReturn {
+  id: string
+  return_number: string
+  status: ReturnStatus
+  department: DepartmentRef
+  requested_by: ActorRef
+  reason: string
+  rejection_reason: string | null
+  processed_by: ActorRef | null
+  processed_at: string | null
+  items: ReturnItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface StockReturnList {
+  id: string
+  return_number: string
+  status: ReturnStatus
+  department: DepartmentRef
+  requested_by: ActorRef
+  reason: string
+  item_count: number
+  total_requested: number
+  total_accepted: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Notification {
+  id: string
+  type: string
+  title: string
+  body: string
+  related_type: string | null
+  related_id: string | null
+  is_read: boolean
+  created_at: string
+}
+
+export interface Meta {
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export interface ListResult<T> {
+  items: T[]
+  meta: Meta
+}
+
+export interface InventoryReportRow {
+  sku: string
+  product: string
+  category: string
+  unit: string
+  quantity: number
+  min_stock: number
+  is_low_stock: boolean
+  unit_cost: number | null
+  stock_value: number
+  last_movement_at: string | null
+}
+
+export interface UsageReportRow {
+  department: string
+  sku: string
+  product: string
+  issued_units: number
+  returned_units: number
+  net_used: number
+  last_issued_at: string | null
+}
+
+export interface LowStockReportRow {
+  sku: string
+  product: string
+  category: string
+  quantity: number
+  min_stock: number
+  shortage: number
+  last_movement_at: string | null
+}
+
+export interface Dashboard {
+  [key: string]: unknown
+  total_products?: number
+  total_stock_units?: number
+  inventory_value?: string
+  products_without_cost?: number
+  low_stock_count?: number
+  pending_requests?: number
+  available_products?: number
+  my_pending_requests?: number
+  my_fulfilled_requests?: number
+  my_partially_fulfilled_requests?: number
+  recent_movements?: Movement[]
+  low_stock?: LowStockItem[]
+  pending_preview?: PendingPreview[]
+  movement_chart?: ChartPoint[]
+  recent_department_movements?: Movement[]
+  usage_last_30d?: UsageReportRow[]
+}
+
+export interface LowStockItem {
+  product_id: string
+  sku: string
+  name: string
+  quantity: number
+  min_stock: number
+}
+
+export interface PendingPreview {
+  id: string
+  request_number: string
+  department: string
+  purpose: string
+  created_at: string
+}
+
+export interface ChartPoint {
+  date: string
+  in_units: number
+  out_units: number
+}

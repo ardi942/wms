@@ -1,0 +1,106 @@
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Pencil } from 'lucide-react'
+import { toast } from 'sonner'
+import { inventoryApi, productApi } from '../../api/endpoints'
+import { useAuth } from '../../auth/AuthProvider'
+import { Button, Card, CardHeader } from '../../components/ui'
+import { ConfirmDialog, DataTable, ErrorState, Loading, PageHeader, StatusBadge, type Column } from '../../components/common'
+import { formatCurrency, formatDateTime, formatQty } from '../../lib/format'
+import type { Movement } from '../../types'
+
+export function ProductDetailPage() {
+  const { id } = useParams()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const product = useQuery({ queryKey: ['product', id], queryFn: () => productApi.get(id!) })
+  const movements = useQuery({ queryKey: ['movements', { product_id: id }], queryFn: () => inventoryApi.movements({ product_id: id, page_size: 10 }) })
+
+  if (product.isLoading) return <Loading />
+  if (product.error) return <ErrorState error={product.error} onRetry={() => product.refetch()} />
+  const p = product.data!.data
+  const isAdmin = user?.role === 'WAREHOUSE_ADMIN'
+  const isSupervisor = user?.role === 'SUPERVISOR'
+  const canEdit = isAdmin || isSupervisor
+
+  const toggleActive = async () => {
+    setSaving(true)
+    try {
+      await productApi.update(p.id, { is_active: !p.is_active })
+      toast.success(p.is_active ? 'Product deactivated' : 'Product activated')
+      await queryClient.invalidateQueries({ queryKey: ['product', id] })
+      await queryClient.invalidateQueries({ queryKey: ['products'] })
+      setConfirmOpen(false)
+    } catch {
+      toast.error('Could not update product')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const columns: Column<Movement>[] = [
+    { key: 'when', header: 'When', render: (m) => formatDateTime(m.created_at) },
+    { key: 'type', header: 'Type', render: (m) => <span className={m.movement_type === 'IN' ? 'text-emerald-600' : 'text-red-600'}>{m.movement_type}</span> },
+    { key: 'qty', header: 'Change', render: (m) => `${m.quantity_delta > 0 ? '+' : ''}${formatQty(m.quantity_delta)}` },
+    { key: 'balance', header: 'Balance', render: (m) => formatQty(m.balance_after) },
+    { key: 'ref', header: 'Reference', render: (m) => m.reference_number },
+    { key: 'actor', header: 'By', render: (m) => m.actor.full_name },
+  ]
+
+  return (
+    <div>
+      <PageHeader
+        title={`${p.sku} — ${p.name}`}
+        description={p.description ?? undefined}
+        actions={
+          <>
+            <Link to={`/inventory/${p.id}`}><Button variant="outline">View inventory</Button></Link>
+            {canEdit && <Link to={`/products/${p.id}/edit`}><Button variant="secondary"><Pencil className="h-4 w-4" /> {isSupervisor && !isAdmin ? 'Set cost' : 'Edit'}</Button></Link>}
+            {isAdmin && <Button variant={p.is_active ? 'danger' : 'primary'} onClick={() => setConfirmOpen(true)}>{p.is_active ? 'Deactivate' : 'Activate'}</Button>}
+          </>
+        }
+      />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="p-5 lg:col-span-2">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <div><dt className="text-xs uppercase text-slate-500">Current stock</dt><dd className="text-2xl font-semibold">{formatQty(p.current_stock)} {p.unit.code}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">Minimum stock</dt><dd className="text-lg">{formatQty(p.min_stock)}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">Category</dt><dd>{p.category.name}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">Unit</dt><dd>{p.unit.name}</dd></div>
+            {isSupervisor && <div><dt className="text-xs uppercase text-slate-500">Unit cost</dt><dd>{formatCurrency(p.unit_cost)}</dd></div>}
+            {isSupervisor && <div><dt className="text-xs uppercase text-slate-500">Stock value</dt><dd>{formatCurrency((p.unit_cost ?? 0) * p.current_stock)}</dd></div>}
+            <div><dt className="text-xs uppercase text-slate-500">Status</dt><dd>{p.is_active ? <StatusBadge status="FULFILLED" /> : <StatusBadge status="CANCELLED" />}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">Low stock</dt><dd>{p.is_low_stock ? <span className="text-amber-700">Yes</span> : 'No'}</dd></div>
+          </dl>
+        </Card>
+        <Card>
+          <CardHeader title="Quick actions" />
+          <div className="space-y-2 p-4">
+            <Button className="w-full" variant="outline" onClick={() => navigate('/receiving')} disabled={!isAdmin}>Receive stock</Button>
+            <Button className="w-full" variant="outline" onClick={() => navigate('/adjustments')} disabled={!isAdmin}>Adjust stock</Button>
+            <Button className="w-full" variant="outline" onClick={() => navigate('/requests/new')} disabled={user?.role !== 'DEPARTMENT_USER'}>Request this product</Button>
+          </div>
+        </Card>
+      </div>
+      <Card className="mt-4">
+        <CardHeader title="Recent movements" action={<Link className="text-sm text-brand-600" to={`/inventory/${p.id}`}>All movements</Link>} />
+        <DataTable columns={columns} rows={movements.data?.items ?? []} loading={movements.isLoading} error={movements.error} emptyTitle="No movements yet" />
+      </Card>
+      <ConfirmDialog
+        open={confirmOpen}
+        title={p.is_active ? 'Deactivate product?' : 'Activate product?'}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={toggleActive}
+        loading={saving}
+        danger={p.is_active}
+        confirmLabel={p.is_active ? 'Deactivate' : 'Activate'}
+      >
+        {p.is_active ? 'Inactive products are hidden from department users and cannot be requested. Existing history is preserved.' : 'The product will become available for new requests and receiving.'}
+      </ConfirmDialog>
+    </div>
+  )
+}
