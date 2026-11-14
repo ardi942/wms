@@ -23,6 +23,7 @@ type MovementInput struct {
 	Notes           *string
 	Reason          *string
 	MinStock        int
+	OccurredAt      time.Time
 }
 
 // ApplyMovement inserts a movement and updates the balance atomically. The
@@ -55,7 +56,10 @@ func (r *Repository) ApplyMovement(tx *gorm.DB, in MovementInput) (*Movement, bo
 			"requested": -in.QuantityDelta,
 		})
 	}
-	now := time.Now().UTC()
+	now := in.OccurredAt.UTC()
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
 	movement := &Movement{
 		ID:              uuid.Must(uuid.NewV7()),
 		ProductID:       in.ProductID,
@@ -120,6 +124,10 @@ func (r *Repository) NetIssued(tx *gorm.DB, departmentID, productID uuid.UUID) (
 var seqPattern = regexp.MustCompile(`^[a-z_]+$`)
 
 func NextDocumentNumber(tx *gorm.DB, sequence, prefix string) (string, error) {
+	return NextDocumentNumberAt(tx, sequence, prefix, time.Now().UTC())
+}
+
+func NextDocumentNumberAt(tx *gorm.DB, sequence, prefix string, at time.Time) (string, error) {
 	if !seqPattern.MatchString(sequence) {
 		return "", fmt.Errorf("invalid sequence name")
 	}
@@ -127,7 +135,7 @@ func NextDocumentNumber(tx *gorm.DB, sequence, prefix string) (string, error) {
 	if err := tx.Raw(fmt.Sprintf("SELECT nextval('%s')", sequence)).Scan(&n).Error; err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-%s-%06d", prefix, time.Now().UTC().Format("20060102"), n), nil
+	return fmt.Sprintf("%s-%s-%06d", prefix, at.UTC().Format("20060102"), n), nil
 }
 
 func SeqRequest() string    { return "request_number_seq" }

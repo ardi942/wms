@@ -10,6 +10,7 @@ import (
 
 func main() {
 	skipMigrate := flag.Bool("skip-migrate", false, "skip running database migrations")
+	reset := flag.Bool("reset", false, "truncate demo tables before seeding (destructive)")
 	flag.Parse()
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -29,6 +30,18 @@ func main() {
 		os.Exit(1)
 	}
 	enabled := env("SEED_DEMO", "true") != "false"
+	if *reset {
+		if !enabled {
+			log.Error("refusing to reset demo data while SEED_DEMO is disabled")
+			os.Exit(1)
+		}
+		log.Warn("resetting demo data; all existing rows will be deleted")
+		if err := database.Reset(db); err != nil {
+			log.Error("reset failed", "error", err)
+			os.Exit(1)
+		}
+		log.Info("demo tables truncated")
+	}
 	if err := database.Run(db, enabled); err != nil {
 		log.Error("seed failed", "error", err)
 		os.Exit(1)

@@ -3,7 +3,7 @@ GO := go
 NPM := npm
 DATABASE_URL ?= postgres://wms:wms@localhost:5432/wms?sslmode=disable
 
-.PHONY: help install dev-up dev-down migrate seed backend worker frontend \
+.PHONY: help install dev-up dev-down migrate seed seed-reset backend worker frontend \
 	build test test-backend test-frontend lint e2e compose-up compose-down reset clean redeploy
 
 help:
@@ -12,6 +12,7 @@ help:
 	@echo "  make dev-up         Start postgres, redis and rabbitmq"
 	@echo "  make migrate        Run migrations"
 	@echo "  make seed           Seed demo data (idempotent)"
+	@echo "  make seed-reset     Truncate demo data and reseed from scratch"
 	@echo "  make backend        Run the API locally"
 	@echo "  make worker         Run the worker locally"
 	@echo "  make frontend       Run the Vite dev server"
@@ -35,6 +36,10 @@ migrate:
 
 seed:
 	cd backend && DATABASE_URL="$(DATABASE_URL)" SEED_DEMO=true $(GO) run ./cmd/seed --skip-migrate
+
+seed-reset:
+	docker compose run --rm --build seed /app/seed --skip-migrate --reset
+	-docker compose exec -T redis redis-cli FLUSHDB
 
 backend:
 	cd backend && DATABASE_URL="$(DATABASE_URL)" $(GO) run ./cmd/api
@@ -61,7 +66,10 @@ lint:
 	cd frontend && $(NPM) run lint
 
 e2e:
-	cd frontend && E2E_BASE_URL=$${E2E_BASE_URL:-http://localhost:$${WMS_FRONTEND_PORT:-3000}} E2E_API_URL=$${E2E_API_URL:-http://localhost:$${WMS_API_PORT:-8080}/api/v1} npx playwright test
+	@cd frontend && E2E_BASE_URL=$${E2E_BASE_URL:-http://localhost:$${WMS_FRONTEND_PORT:-3000}} E2E_API_URL=$${E2E_API_URL:-http://localhost:$${WMS_API_PORT:-8080}/api/v1} npx playwright test; \
+	status=$$?; \
+	$(MAKE) -C "$(CURDIR)" seed-reset; \
+	exit $$status
 
 compose-up:
 	docker compose up --build -d

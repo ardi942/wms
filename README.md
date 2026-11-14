@@ -73,7 +73,7 @@ npm run dev             # http://localhost:5173, proxies /api to :8080
 
 To proxy to a non-default API port, run `VITE_API_PROXY_TARGET=http://localhost:18081 npm run dev`.
 
-The repository `Makefile` wraps the common commands: `make dev-up`, `make migrate`, `make seed`, `make backend`, `make worker`, `make frontend`, `make test`.
+The repository `Makefile` wraps the common commands: `make dev-up`, `make migrate`, `make seed`, `make seed-reset`, `make backend`, `make worker`, `make frontend`, `make test`.
 
 ## Configuration
 
@@ -149,7 +149,7 @@ export WMS_FRONTEND_PORT=13000 WMS_API_PORT=18081
 make e2e
 ```
 
-On a workstation with `npx playwright install --with-deps chromium`, run `npm run test:e2e`. The suite is serial and mutates the demo database; rerun against a fresh seed when you need a clean baseline.
+On a workstation with `npx playwright install --with-deps chromium`, run `npm run test:e2e`. The suite is serial and mutates the demo database. `make e2e` automatically runs `make seed-reset` afterwards, even when tests fail; when invoking Playwright directly, run `make seed-reset` manually to restore a clean baseline.
 
 ## API
 
