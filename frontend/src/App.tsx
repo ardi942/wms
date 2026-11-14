@@ -21,24 +21,27 @@ import { UserListPage } from './features/users/UserListPage'
 import { UserFormPage } from './features/users/UserFormPage'
 import { NotificationsPage } from './features/notifications/NotificationsPage'
 import { Button } from './components/ui'
+import { useT } from './i18n/I18nProvider'
 
 function ForbiddenPage() {
+  const { t } = useT()
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <p className="text-5xl font-bold text-slate-300">403</p>
-      <h1 className="mt-2 text-xl font-semibold">Access denied</h1>
-      <p className="mt-1 text-sm text-slate-500">Your role does not allow this page.</p>
-      <Link className="mt-4" to="/dashboard"><Button variant="outline">Back to dashboard</Button></Link>
+      <h1 className="mt-2 text-xl font-semibold">{t('errors.accessDenied')}</h1>
+      <p className="mt-1 text-sm text-slate-500">{t('errors.roleNotAllowed')}</p>
+      <Link className="mt-4" to="/dashboard"><Button variant="outline">{t('errors.backToDashboard')}</Button></Link>
     </div>
   )
 }
 
 function NotFoundPage() {
+  const { t } = useT()
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <p className="text-5xl font-bold text-slate-300">404</p>
-      <h1 className="mt-2 text-xl font-semibold">Page not found</h1>
-      <Link className="mt-4" to="/dashboard"><Button variant="outline">Back to dashboard</Button></Link>
+      <h1 className="mt-2 text-xl font-semibold">{t('errors.pageNotFound')}</h1>
+      <Link className="mt-4" to="/dashboard"><Button variant="outline">{t('errors.backToDashboard')}</Button></Link>
     </div>
   )
 }

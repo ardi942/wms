@@ -41,7 +41,7 @@ export function AppShell() {
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-sm font-bold text-white">W</div>
           <div>
             <p className="text-sm font-semibold text-slate-900">WMS</p>
-            <p className="text-[11px] text-slate-500">Warehouse Management</p>
+            <p className="text-[11px] text-slate-500">{t('common.warehouseManagement')}</p>
           </div>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -75,13 +75,13 @@ export function AppShell() {
             <span className="font-semibold">WMS</span>
           </div>
           <div className="hidden text-sm text-slate-500 md:block">
-            Signed in as <span className="font-medium text-slate-800">{user.email}</span>
+            {t('common.signedInAs', { email: user.email })}
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/notifications')}
               className="relative rounded-md p-2 text-slate-500 hover:bg-slate-100"
-              aria-label="Notifications"
+              aria-label={t('nav.notifications')}
             >
               <Bell className="h-5 w-5" />
               {Boolean(unread) && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />}

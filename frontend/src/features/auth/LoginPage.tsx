@@ -14,8 +14,8 @@ import { LanguageSwitcher } from '../../i18n/I18nProvider'
 const REMEMBER_KEY = 'wms.login.email'
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.string().email('validation.email'),
+  password: z.string().min(1, 'validation.passwordRequired'),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -72,14 +72,13 @@ export function LoginPage() {
           </div>
         </div>
         <div>
-          <p className="text-xs text-slate-400">© {new Date().getFullYear()} WMS</p>
+          <p className="text-xs text-slate-400">{t('common.copyright', { year: new Date().getFullYear() })}</p>
           <ul className="mt-6 space-y-2 text-sm text-slate-300">
             <li>{t('nav.inventory')}</li>
             <li>{t('nav.requests')}</li>
             <li>{t('nav.reports')}</li>
           </ul>
         </div>
-        <p className="text-xs text-slate-400 mt-8">{t('common.copyright', { year: new Date().getFullYear() })}</p>
       </div>
 
       <div className="flex items-center justify-center bg-slate-100 p-4">

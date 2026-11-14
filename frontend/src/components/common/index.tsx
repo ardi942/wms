@@ -24,25 +24,25 @@ export function PageHeader({ title, description, actions }: { title: string; des
   )
 }
 
-export function Loading({ label = 'Loading…' }: { label?: string }) {
+export function Loading({ label }: { label?: string }) {
   const { t } = useT()
-  const defaultLabel = t('common.loading')
   return (
     <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
-      <Spinner /> {label || defaultLabel}
+      <Spinner /> {label ?? t('common.loading')}
     </div>
   )
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
-  const message = error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Something went wrong'
+  const { t } = useT()
+  const message = error instanceof ApiError ? error.message : error instanceof Error ? error.message : t('common.somethingWrong')
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
       <AlertTriangle className="h-8 w-8 text-red-500" />
       <p className="text-sm text-slate-600">{message}</p>
       {onRetry && (
         <Button variant="outline" size="sm" onClick={onRetry}>
-          <RefreshCw className="h-3.5 w-3.5" /> Retry
+          <RefreshCw className="h-3.5 w-3.5" /> {t('common.retry')}
         </Button>
       )}
     </div>
@@ -117,7 +117,7 @@ export function DataTable<T>({
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
-            {renderExpanded && <th className="w-10 px-4 py-3" aria-label="Expand" />}
+            {renderExpanded && <th className="w-10 px-4 py-3" aria-label={t('actions.expand')} />}
             {columns.map((c) => (
               <th key={c.key} className={cn('px-4 py-3 font-medium', c.className)}>{c.header}</th>
             ))}
@@ -181,27 +181,26 @@ export function Pagination({
   onPage: (page: number) => void
   onPageSize: (size: number) => void
 }) {
+  const { t } = useT()
   const start = meta.total === 0 ? 0 : (meta.page - 1) * meta.page_size + 1
   const end = Math.min(meta.page * meta.page_size, meta.total)
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
-      <span>
-        {start}–{end} of {meta.total}
-      </span>
+      <span>{t('common.pageRange', { start, end, total: meta.total })}</span>
       <div className="flex items-center gap-3">
         <Select
-          className="h-8 w-20 text-xs"
+          className="h-8 w-24 text-xs"
           value={meta.page_size}
           onChange={(e) => onPageSize(Number(e.target.value))}
-          aria-label="Page size"
+          aria-label={t('common.pageSize')}
         >
           {PAGE_SIZES.map((s) => (
-            <option key={s} value={s}>{s} / page</option>
+            <option key={s} value={s}>{t('common.perPage', { size: s })}</option>
           ))}
         </Select>
         <div className="flex gap-1">
-          <Button variant="outline" size="sm" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)}>Previous</Button>
-          <Button variant="outline" size="sm" disabled={meta.page >= meta.total_pages} onClick={() => onPage(meta.page + 1)}>Next</Button>
+          <Button variant="outline" size="sm" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)}>{t('common.previous')}</Button>
+          <Button variant="outline" size="sm" disabled={meta.page >= meta.total_pages} onClick={() => onPage(meta.page + 1)}>{t('common.next')}</Button>
         </div>
       </div>
     </div>
@@ -214,7 +213,7 @@ export function ConfirmDialog({
   children,
   onCancel,
   onConfirm,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   loading,
   danger,
 }: {
@@ -227,18 +226,19 @@ export function ConfirmDialog({
   loading?: boolean
   danger?: boolean
 }) {
+  const { t } = useT()
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <Card className="w-full max-w-md p-5">
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600" aria-label="Close"><X className="h-5 w-5" /></button>
+          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600" aria-label={t('common.close')}><X className="h-5 w-5" /></button>
         </div>
         <div className="mt-3 text-sm text-slate-600">{children}</div>
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button variant={danger ? 'danger' : 'primary'} loading={loading} onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant="outline" onClick={onCancel}>{t('common.cancel')}</Button>
+          <Button variant={danger ? 'danger' : 'primary'} loading={loading} onClick={onConfirm}>{confirmLabel ?? t('common.confirm')}</Button>
         </div>
       </Card>
     </div>
@@ -250,10 +250,11 @@ export function FilterBar({ children }: { children: ReactNode }) {
 }
 
 export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const { t } = useT()
   return (
     <div className="relative w-64">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? 'Search…'} className="h-9 pl-8" />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? t('common.search')} className="h-9 pl-8" />
     </div>
   )
 }
@@ -273,6 +274,7 @@ function parseIsoDate(s: string): Date | undefined {
 }
 
 export function RangeDatePicker({ from, to, onFrom, onTo }: { from: string; to: string; onFrom: (v: string) => void; onTo: (v: string) => void }) {
+  const { t } = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -313,7 +315,7 @@ export function RangeDatePicker({ from, to, onFrom, onTo }: { from: string; to: 
     onTo(isoDate(end))
     setOpen(false)
   }
-  const label = from && to ? `${from} → ${to}` : from ? `From ${from}` : to ? `Until ${to}` : 'Any date'
+  const label = from && to ? t('common.dateRange', { from, to }) : from ? t('common.fromDate', { date: from }) : to ? t('common.untilDate', { date: to }) : t('common.anyDate')
 
   return (
     <div className="relative" ref={ref}>
@@ -328,11 +330,11 @@ export function RangeDatePicker({ from, to, onFrom, onTo }: { from: string; to: 
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-max rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
           <div className="mb-2 flex flex-wrap gap-1">
-            <Button variant="ghost" size="sm" onClick={() => preset(1)}>Today</Button>
-            <Button variant="ghost" size="sm" onClick={() => preset(7)}>7d</Button>
-            <Button variant="ghost" size="sm" onClick={() => preset(30)}>30d</Button>
-            <Button variant="ghost" size="sm" onClick={presetMonth}>This month</Button>
-            <Button variant="ghost" size="sm" onClick={() => { onFrom(''); onTo('') }}>Clear</Button>
+            <Button variant="ghost" size="sm" onClick={() => preset(1)}>{t('common.today')}</Button>
+            <Button variant="ghost" size="sm" onClick={() => preset(7)}>{t('common.last7')}</Button>
+            <Button variant="ghost" size="sm" onClick={() => preset(30)}>{t('common.last30')}</Button>
+            <Button variant="ghost" size="sm" onClick={presetMonth}>{t('common.thisMonth')}</Button>
+            <Button variant="ghost" size="sm" onClick={() => { onFrom(''); onTo('') }}>{t('common.clear')}</Button>
           </div>
           <DayPicker
             mode="range"
@@ -350,14 +352,21 @@ export function RangeDatePicker({ from, to, onFrom, onTo }: { from: string; to: 
 export const DateRangeFilter = RangeDatePicker
 
 export function ProductPicker({
+  id,
   value,
   onChange,
   disabled,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
 }: {
+  id?: string
   value: Product | null
   onChange: (p: Product | null) => void
   disabled?: boolean
+  'aria-describedby'?: string
+  'aria-invalid'?: boolean
 }) {
+  const { t } = useT()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState<Product[]>([])
@@ -383,9 +392,17 @@ export function ProductPicker({
 
   if (value) {
     return (
-      <div className="flex h-10 items-center justify-between rounded-md border border-slate-300 bg-white px-3 text-sm">
-        <span><span className="font-medium">{value.sku}</span> — {value.name} ({formatQty(value.current_stock)} {value.unit.code})</span>
-        {!disabled && <button onClick={() => onChange(null)} aria-label="Clear" className="text-slate-400 hover:text-slate-600"><X className="h-4 w-4" /></button>}
+      <div className="flex min-h-10 items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm">
+        <span className="min-w-0">
+          <span className="block truncate">
+            <span className="font-medium">{value.sku}</span> — {value.name}
+          </span>
+          <span className="block text-xs text-slate-500">
+            {value.category.name} · {formatQty(value.current_stock)} {value.unit.code}
+            {value.is_low_stock ? ` · ${t('common.lowStock')}` : ''}
+          </span>
+        </span>
+        {!disabled && <button onClick={() => onChange(null)} aria-label={t('common.clear')} className="shrink-0 text-slate-400 hover:text-slate-600"><X className="h-4 w-4" /></button>}
       </div>
     )
   }
@@ -393,25 +410,31 @@ export function ProductPicker({
   return (
     <div className="relative">
       <Input
+        id={id}
         value={query}
         disabled={disabled}
         onFocus={() => setOpen(true)}
         onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
-        placeholder="Search by SKU or product name…"
+        placeholder={t('common.searchBySkuOrName')}
+        aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid}
       />
       {open && (
         <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg">
-          {loading && <div className="px-3 py-2 text-sm text-slate-500">Searching…</div>}
-          {!loading && rows.length === 0 && <div className="px-3 py-2 text-sm text-slate-500">No matching products</div>}
+          {loading && <div className="px-3 py-2 text-sm text-slate-500">{t('empty.searching')}</div>}
+          {!loading && rows.length === 0 && <div className="px-3 py-2 text-sm text-slate-500">{t('empty.noMatchingProducts')}</div>}
           {!loading && rows.filter((r) => r.is_active).map((p) => (
             <button
               key={p.id}
               type="button"
-              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50"
               onClick={() => { onChange(p); setOpen(false); setQuery('') }}
             >
-              <span><span className="font-medium">{p.sku}</span> — {p.name}</span>
-              <span className="text-xs text-slate-500">{formatQty(p.current_stock)} {p.unit.code}</span>
+              <span className="min-w-0">
+                <span className="block truncate"><span className="font-medium">{p.sku}</span> — {p.name}</span>
+                <span className="block text-xs text-slate-500">{p.category.name} · {formatQty(p.current_stock)} {p.unit.code}</span>
+              </span>
+              {p.is_low_stock && <Badge tone="amber">{t('common.lowStock')}</Badge>}
             </button>
           ))}
         </div>
@@ -429,6 +452,7 @@ export function WorkflowStepper({
   steps: Array<{ key: string; label: string }>
   current: string
 }) {
+  const { t } = useT()
   const terminal = current === 'REJECTED' || current === 'CANCELLED'
   const currentIndex = steps.findIndex((s) => s.key === current)
   return (
@@ -455,7 +479,7 @@ export function WorkflowStepper({
           </li>
         )
       })}
-      {terminal && <Badge tone="red">{statusLabel(current)}</Badge>}
+      {terminal && <Badge tone="red">{t(`status.${current}`)}</Badge>}
     </ol>
   )
 }

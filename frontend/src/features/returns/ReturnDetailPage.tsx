@@ -34,7 +34,7 @@ export function ReturnDetailPage() {
   if (ret.error) return <ErrorState error={ret.error} onRetry={() => ret.refetch()} />
   if (!row) return null
 
-const can = (action: string) => row.allowed_actions?.includes(action) ?? false
+  const can = (action: string) => row.allowed_actions?.includes(action) ?? false
 
   const invalidate = async () => {
     await Promise.all([
@@ -49,31 +49,31 @@ const can = (action: string) => row.allowed_actions?.includes(action) ?? false
 
   const confirm = async () => {
     const lines = row.items.map((item) => ({ item_id: item.id, accepted_qty: Number(accepted[item.id] ?? 0) }))
-    if (!lines.some((l) => l.accepted_qty > 0)) { toast.error('At least one accepted quantity must be greater than zero'); return }
+    if (!lines.some((l) => l.accepted_qty > 0)) { toast.error(t('validation.acceptedGreaterThanZero')); return }
     setSaving(true)
     try {
       await returnApi.confirm(row.id, { items: lines })
-      toast.success('Return confirmed')
+      toast.success(t('toast.returnConfirmed'))
       setConfirmOpen(false)
       await invalidate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Confirmation failed')
+      toast.error(err instanceof ApiError ? err.message : t('toast.confirmationFailed'))
     } finally {
       setSaving(false)
     }
   }
 
   const reject = async () => {
-    if (reason.trim().length < 5) { toast.error('Reason must be at least 5 characters'); return }
+    if (reason.trim().length < 5) { toast.error(t('validation.reasonRequired')); return }
     setSaving(true)
     try {
       await returnApi.reject(row.id, { reason: reason.trim() })
-      toast.success('Return rejected')
+      toast.success(t('toast.returnRejected'))
       setRejectOpen(false)
       setReason('')
       await invalidate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Rejection failed')
+      toast.error(err instanceof ApiError ? err.message : t('toast.rejectionFailed'))
     } finally {
       setSaving(false)
     }
@@ -83,11 +83,11 @@ const can = (action: string) => row.allowed_actions?.includes(action) ?? false
     setSaving(true)
     try {
       await returnApi.cancel(row.id)
-      toast.success('Return cancelled')
+      toast.success(t('toast.returnCancelled'))
       setCancelOpen(false)
       await invalidate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Cancellation failed')
+      toast.error(err instanceof ApiError ? err.message : t('toast.cancellationFailed'))
     } finally {
       setSaving(false)
     }
@@ -97,12 +97,16 @@ const can = (action: string) => row.allowed_actions?.includes(action) ?? false
     <div>
       <PageHeader
         title={row.return_number}
-        description={`${row.department.name} · submitted by ${row.requested_by.full_name} on ${formatDateTime(row.created_at)}`}
+        description={t('details.submittedBy', {
+          department: row.department.name,
+          name: row.requested_by.full_name,
+          date: formatDateTime(row.created_at),
+        })}
         actions={
           <>
             <Link to="/returns"><Button variant="outline">{t('common.back')}</Button></Link>
             {can('reject') && <Button variant="danger" onClick={() => setRejectOpen(true)}>{t('actions.reject')}</Button>}
-            {can('confirm') && <Button onClick={() => setConfirmOpen(true)}>{t('actions.confirm')}</Button>}
+            {can('confirm') && <Button onClick={() => setConfirmOpen(true)}>{t('dialogs.confirmReturn')}</Button>}
             {can('cancel') && <Button variant="danger" onClick={() => setCancelOpen(true)}>{t('actions.cancel')}</Button>}
           </>
         }
@@ -117,38 +121,46 @@ const can = (action: string) => row.allowed_actions?.includes(action) ?? false
             ]}
           />
           <dl className="grid gap-4 sm:grid-cols-2">
-            <div><dt className="text-xs uppercase text-slate-500">Status</dt><dd className="mt-1"><StatusBadge status={row.status} /></dd></div>
-            <div><dt className="text-xs uppercase text-slate-500">Reason</dt><dd className="mt-1">{row.reason}</dd></div>
-            <div><dt className="text-xs uppercase text-slate-500">Processed by</dt><dd className="mt-1">{row.processed_by?.full_name ?? '—'}</dd></div>
-            <div><dt className="text-xs uppercase text-slate-500">Processed at</dt><dd className="mt-1">{formatDateTime(row.processed_at)}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">{t('details.status')}</dt><dd className="mt-1"><StatusBadge status={row.status} /></dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">{t('details.reason')}</dt><dd className="mt-1">{row.reason}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">{t('details.processedBy')}</dt><dd className="mt-1">{row.processed_by?.full_name ?? '—'}</dd></div>
+            <div><dt className="text-xs uppercase text-slate-500">{t('details.processedAt')}</dt><dd className="mt-1">{formatDateTime(row.processed_at)}</dd></div>
           </dl>
-          {row.rejection_reason && <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">Rejection reason: {row.rejection_reason}</div>}
+          {row.rejection_reason && <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{t('details.rejectionReason')}: {row.rejection_reason}</div>}
         </Card>
         <Card>
-          <CardHeader title="Items" description={`${row.items.length} line(s)`} />
+          <CardHeader title={t('details.items')} description={t('common.lineCount', { count: row.items.length })} />
           <ul className="divide-y divide-slate-100">
             {row.items.map((item) => (
               <li key={item.id} className="px-5 py-3 text-sm">
                 <p className="font-medium">{item.product.sku} — {item.product.name}</p>
-                <p className="text-slate-500">Requested {formatQty(item.requested_qty)} · Accepted {formatQty(item.accepted_qty)}</p>
+                <p className="text-slate-500">{t('details.requested')} {formatQty(item.requested_qty)} · {t('details.accepted')} {formatQty(item.accepted_qty)}</p>
               </li>
             ))}
           </ul>
         </Card>
       </div>
 
-      <ConfirmDialog open={cancelOpen} title="Cancel return?" onCancel={() => setCancelOpen(false)} onConfirm={cancel} loading={saving} danger confirmLabel="Cancel return">
-        This return will be cancelled and cannot be confirmed.
+      <ConfirmDialog
+        open={cancelOpen}
+        title={t('dialogs.cancelReturn')}
+        onCancel={() => setCancelOpen(false)}
+        onConfirm={cancel}
+        loading={saving}
+        danger
+        confirmLabel={t('actions.cancel')}
+      >
+        {t('dialogs.cancelReturnBody')}
       </ConfirmDialog>
 
       {rejectOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <Card className="w-full max-w-md p-5">
-            <h3 className="text-lg font-semibold">Reject return</h3>
-            <Textarea className="mt-3" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for rejection (min. 5 characters)" />
+            <h3 className="text-lg font-semibold">{t('dialogs.rejectReturn')}</h3>
+            <Textarea className="mt-3" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('dialogs.reasonPlaceholder')} />
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setRejectOpen(false)}>Cancel</Button>
-              <Button variant="danger" loading={saving} onClick={reject}>Reject return</Button>
+              <Button variant="outline" onClick={() => setRejectOpen(false)}>{t('common.cancel')}</Button>
+              <Button variant="danger" loading={saving} onClick={reject}>{t('actions.reject')}</Button>
             </div>
           </Card>
         </div>
@@ -157,14 +169,14 @@ const can = (action: string) => row.allowed_actions?.includes(action) ?? false
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <Card className="max-h-[90vh] w-full max-w-2xl overflow-y-auto p-5">
-            <h3 className="text-lg font-semibold">Confirm return</h3>
-            <p className="mt-1 text-sm text-slate-500">Enter the accepted quantity for every line. Rejected quantities stay in the department's issued balance.</p>
+            <h3 className="text-lg font-semibold">{t('dialogs.confirmReturn')}</h3>
+            <p className="mt-1 text-sm text-slate-500">{t('dialogs.confirmReturnBody')}</p>
             <div className="mt-4 space-y-3">
               {row.items.map((item) => (
                 <div key={item.id} className="grid items-center gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[1fr_120px]">
                   <div className="text-sm">
                     <p className="font-medium">{item.product.sku} — {item.product.name}</p>
-                    <p className="text-slate-500">Requested {formatQty(item.requested_qty)}</p>
+                    <p className="text-slate-500">{t('details.requested')} {formatQty(item.requested_qty)}</p>
                   </div>
                   <Input
                     type="number"
@@ -177,8 +189,8 @@ const can = (action: string) => row.allowed_actions?.includes(action) ?? false
               ))}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
-              <Button loading={saving} onClick={confirm}>Confirm return</Button>
+              <Button variant="outline" onClick={() => setConfirmOpen(false)}>{t('common.cancel')}</Button>
+              <Button loading={saving} onClick={confirm}>{t('dialogs.confirmReturn')}</Button>
             </div>
           </Card>
         </div>

@@ -1,5 +1,6 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { cloneElement, isValidElement, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactElement, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useT } from '../../i18n/I18nProvider'
 import { cn } from '../../lib/utils'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
@@ -83,12 +84,57 @@ export function Label({ htmlFor, children, className }: { htmlFor?: string; chil
   )
 }
 
-export function Field({ label, error, htmlFor, children }: { label: string; error?: string; htmlFor?: string; children: ReactNode }) {
+export function Field({
+  label,
+  hint,
+  example,
+  error,
+  htmlFor,
+  children,
+}: {
+  label: string
+  hint?: string
+  example?: string
+  error?: string
+  htmlFor?: string
+  children: ReactNode
+}) {
+  const { t } = useT()
+  const autoId = useId()
+  const fieldId = htmlFor ?? autoId
+  const hintId = hint || example ? `${fieldId}-hint` : undefined
+  const errorId = error ? `${fieldId}-error` : undefined
+  const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined
+  const message = error ? t(error) : undefined
+  const childProps: Record<string, unknown> = {}
+  if (describedBy) {
+    childProps['aria-describedby'] = describedBy
+    childProps['aria-invalid'] = Boolean(error)
+  }
+  if (!htmlFor) childProps.id = fieldId
+  const child =
+    isValidElement(children) && Object.keys(childProps).length > 0
+      ? cloneElement(children as ReactElement<Record<string, unknown>>, childProps)
+      : children
   return (
     <div>
       <Label htmlFor={htmlFor}>{label}</Label>
-      {children}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {child}
+      {(hint || example) && (
+        <div id={hintId} className="mt-1 space-y-0.5">
+          {hint && <p className="text-xs text-slate-500">{hint}</p>}
+          {example && (
+            <p className="text-xs text-slate-400">
+              <span className="font-medium">{t('common.example')}:</span> {example}
+            </p>
+          )}
+        </div>
+      )}
+      {message && (
+        <p id={errorId} role="alert" className="mt-1 text-xs font-medium text-red-600">
+          {message}
+        </p>
+      )}
     </div>
   )
 }

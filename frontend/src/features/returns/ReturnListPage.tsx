@@ -22,12 +22,12 @@ export function ReturnListPage() {
   const returns = useQuery({ queryKey: ['returns', filters], queryFn: () => returnApi.list(filters) })
 
   const columns: Column<StockReturnList>[] = [
-    { key: 'number', header: 'Return', render: (r) => <span className="font-medium text-brand-700">{r.return_number}</span> },
-    { key: 'department', header: 'Department', render: (r) => r.department.name },
-    { key: 'reason', header: 'Reason', render: (r) => <span className="line-clamp-1">{r.reason}</span>, tooltip: (r) => r.reason },
-    { key: 'items', header: 'Lines', render: (r) => formatQty(r.item_count) },
-    { key: 'qty', header: 'Accepted / requested', render: (r) => `${formatQty(r.total_accepted)} / ${formatQty(r.total_requested)}` },
-    { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+    { key: 'number', header: t('details.returnNumber'), render: (r) => <span className="font-medium text-brand-700">{r.return_number}</span> },
+    { key: 'department', header: t('details.department'), render: (r) => r.department.name },
+    { key: 'reason', header: t('details.reason'), render: (r) => <span className="line-clamp-1">{r.reason}</span>, tooltip: (r) => r.reason },
+    { key: 'items', header: t('details.lines'), render: (r) => formatQty(r.item_count) },
+    { key: 'qty', header: t('details.acceptedRequested'), render: (r) => `${formatQty(r.total_accepted)} / ${formatQty(r.total_requested)}` },
+    { key: 'status', header: t('details.status'), render: (r) => <StatusBadge status={r.status} /> },
     {
       key: 'actions',
       header: '',
@@ -47,22 +47,22 @@ export function ReturnListPage() {
           </Tooltip>
         ),
     },
-    { key: 'created', header: 'Created', render: (r) => formatDateTime(r.created_at) },
+    { key: 'created', header: t('details.created'), render: (r) => formatDateTime(r.created_at) },
   ]
 
   return (
     <div>
       <PageHeader
-        title="Returns"
-        description={user?.role === 'DEPARTMENT_USER' ? 'Return unused stock from your department.' : 'Review and confirm department returns.'}
-        actions={user?.role === 'DEPARTMENT_USER' ? <Link to="/returns/new"><Button><Plus className="h-4 w-4" /> New return</Button></Link> : undefined}
+        title={t('pages.returns')}
+        description={user?.role === 'DEPARTMENT_USER' ? t('pages.returnsDescriptionDept') : t('pages.returnsDescriptionAdmin')}
+        actions={user?.role === 'DEPARTMENT_USER' ? <Link to="/returns/new"><Button><Plus className="h-4 w-4" /> {t('actions.newReturn')}</Button></Link> : undefined}
       />
       <Card>
         <FilterBar>
-          <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search number or reason…" />
+          <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder={t('common.searchNumberOrReason')} />
           <Select className="h-9 w-48" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
-            <option value="">All statuses</option>
-            {['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED'].map((s) => <option key={s} value={s}>{s.replaceAll('_', ' ')}</option>)}
+            <option value="">{t('common.allStatuses')}</option>
+            {['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED'].map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
           </Select>
         </FilterBar>
         <DataTable
@@ -75,10 +75,10 @@ export function ReturnListPage() {
           getRowKey={(r) => r.id}
           renderExpanded={(r) => (
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
-              <div><dt className="text-xs uppercase text-slate-500">Reason</dt><dd>{r.reason}</dd></div>
-              <div><dt className="text-xs uppercase text-slate-500">Requested by</dt><dd>{r.requested_by.full_name}</dd></div>
-              <div><dt className="text-xs uppercase text-slate-500">Accepted / requested</dt><dd>{formatQty(r.total_accepted)} / {formatQty(r.total_requested)}</dd></div>
-              <div><dt className="text-xs uppercase text-slate-500">Updated</dt><dd>{formatDateTime(r.updated_at)}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">{t('details.reason')}</dt><dd>{r.reason}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">{t('details.requestedBy')}</dt><dd>{r.requested_by.full_name}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">{t('details.acceptedRequested')}</dt><dd>{formatQty(r.total_accepted)} / {formatQty(r.total_requested)}</dd></div>
+              <div><dt className="text-xs uppercase text-slate-500">{t('details.updated')}</dt><dd>{formatDateTime(r.updated_at)}</dd></div>
             </dl>
           )}
         />

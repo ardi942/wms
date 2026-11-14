@@ -9,18 +9,20 @@ import { referenceApi, userApi } from '../../api/endpoints'
 import { ApiError } from '../../api/client'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 import { ErrorState, Loading, PageHeader } from '../../components/common'
+import { useT } from '../../i18n/I18nProvider'
 
 const schema = z.object({
-  email: z.string().email(),
-  full_name: z.string().min(2).max(200),
+  email: z.string().email('validation.email'),
+  full_name: z.string().min(2, 'validation.nameMin').max(200, 'validation.tooLong'),
   password: z.string().optional(),
-  department_id: z.string().uuid('Choose a department'),
+  department_id: z.string().uuid('validation.selectDepartment'),
   is_active: z.boolean(),
 })
 type FormValues = z.infer<typeof schema>
 
 export function UserFormPage() {
   const { id } = useParams()
+  const { t } = useT()
   const editing = Boolean(id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -41,11 +43,11 @@ export function UserFormPage() {
 
   const onSubmit = async (values: FormValues) => {
     if (!editing && (!values.password || values.password.length < 8)) {
-      setError('password', { message: 'Password must be at least 8 characters' })
+      setError('password', { message: 'validation.passwordMin' })
       return
     }
     if (values.password && values.password.length < 8) {
-      setError('password', { message: 'Password must be at least 8 characters' })
+      setError('password', { message: 'validation.passwordMin' })
       return
     }
     setSubmitting(true)
@@ -65,11 +67,11 @@ export function UserFormPage() {
           department_id: values.department_id,
         })
       }
-      toast.success(editing ? 'User updated' : 'User created')
+      toast.success(editing ? t('toast.userUpdated') : t('toast.userCreated'))
       await queryClient.invalidateQueries({ queryKey: ['users'] })
       navigate('/users')
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Save failed'
+      const message = err instanceof ApiError ? err.message : t('toast.saveFailed')
       if (err instanceof ApiError && err.details) {
         for (const [field, value] of Object.entries(err.details)) {
           if (field in schema.shape) setError(field as keyof FormValues, { message: String(value) })
@@ -86,32 +88,60 @@ export function UserFormPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <PageHeader title={editing ? 'Edit user' : 'New department user'} description="Department users can create requests and returns for their department." />
+      <PageHeader
+        title={editing ? t('pages.editUser') : t('pages.newUser')}
+        description={t('pages.userFormDescription')}
+      />
       <Card className="p-6">
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
-          <Field label="Email" htmlFor="email" error={errors.email?.message}>
+          <Field
+            label={t('fields.email')}
+            hint={t('fields.emailHint')}
+            example={t('fields.emailExample')}
+            htmlFor="email"
+            error={errors.email?.message}
+          >
             <Input id="email" type="email" disabled={editing} {...register('email')} />
           </Field>
-          <Field label="Full name" htmlFor="full_name" error={errors.full_name?.message}>
+          <Field
+            label={t('fields.fullName')}
+            example={t('fields.fullNameExample')}
+            htmlFor="full_name"
+            error={errors.full_name?.message}
+          >
             <Input id="full_name" {...register('full_name')} />
           </Field>
-          <Field label="Department" htmlFor="department_id" error={errors.department_id?.message}>
+          <Field
+            label={t('fields.department')}
+            hint={t('fields.departmentHint')}
+            htmlFor="department_id"
+            error={errors.department_id?.message}
+          >
             <Select id="department_id" {...register('department_id')}>
-              <option value="">Select department</option>
+              <option value="">{t('fields.departmentPlaceholder')}</option>
               {departments.data?.data.map((d) => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
             </Select>
           </Field>
-          <Field label={editing ? 'New password (optional)' : 'Password'} htmlFor="password" error={errors.password?.message}>
+          <Field
+            label={editing ? t('fields.newPassword') : t('fields.password')}
+            hint={editing ? t('fields.passwordKeepHint') : t('fields.passwordHint')}
+            htmlFor="password"
+            error={errors.password?.message}
+          >
             <Input id="password" type="password" autoComplete="new-password" {...register('password')} />
           </Field>
           {editing && (
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" className="h-4 w-4 rounded border-slate-300" {...register('is_active')} /> Active
-            </label>
+            <div>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" className="h-4 w-4 rounded border-slate-300" {...register('is_active')} />
+                {t('fields.active')}
+              </label>
+              <p className="mt-1 text-xs text-slate-500">{t('fields.activeHint')}</p>
+            </div>
           )}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-            <Button type="submit" loading={submitting}>{editing ? 'Save changes' : 'Create user'}</Button>
+            <Button type="button" variant="outline" onClick={() => navigate(-1)}>{t('common.cancel')}</Button>
+            <Button type="submit" loading={submitting}>{editing ? t('actions.saveChanges') : t('actions.createUser')}</Button>
           </div>
         </form>
       </Card>

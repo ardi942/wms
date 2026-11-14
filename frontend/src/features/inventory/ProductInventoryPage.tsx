@@ -3,13 +3,15 @@ import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { inventoryApi } from '../../api/endpoints'
 import { useAuth } from '../../auth/AuthProvider'
-import { Button, Card, CardHeader } from '../../components/ui'
-import { DataTable, ErrorState, Loading, PageHeader, Pagination, RangeDatePicker, StatusBadge, type Column } from '../../components/common'
+import { Badge, Button, Card, CardHeader } from '../../components/ui'
+import { DataTable, ErrorState, Loading, PageHeader, Pagination, RangeDatePicker, type Column } from '../../components/common'
+import { useT } from '../../i18n/I18nProvider'
 import { formatCurrency, formatDateTime, formatQty } from '../../lib/format'
 import type { Movement } from '../../types'
 
 export function ProductInventoryPage() {
   const { user } = useAuth()
+  const { t } = useT()
   const { productId } = useParams()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -24,31 +26,31 @@ export function ProductInventoryPage() {
   const b = balance.data!.data
 
   const columns: Column<Movement>[] = [
-    { key: 'when', header: 'When', render: (m) => formatDateTime(m.created_at) },
-    { key: 'type', header: 'Type', render: (m) => <span className={m.movement_type === 'IN' ? 'text-emerald-600' : 'text-red-600'}>{m.movement_type}</span> },
-    { key: 'qty', header: 'Change', render: (m) => `${m.quantity_delta > 0 ? '+' : ''}${formatQty(m.quantity_delta)}` },
-    { key: 'balance', header: 'Balance after', render: (m) => formatQty(m.balance_after) },
-    { key: 'ref', header: 'Reference', render: (m) => m.reference_number },
-    { key: 'dept', header: 'Department', render: (m) => m.department?.name ?? '—' },
-    { key: 'by', header: 'By', render: (m) => m.actor.full_name },
+    { key: 'when', header: t('details.when'), render: (m) => formatDateTime(m.created_at) },
+    { key: 'type', header: t('details.type'), render: (m) => <span className={m.movement_type === 'IN' ? 'text-emerald-600' : 'text-red-600'}>{m.movement_type}</span> },
+    { key: 'qty', header: t('details.change'), render: (m) => `${m.quantity_delta > 0 ? '+' : ''}${formatQty(m.quantity_delta)}` },
+    { key: 'balance', header: t('details.balanceAfter'), render: (m) => formatQty(m.balance_after) },
+    { key: 'ref', header: t('details.reference'), render: (m) => m.reference_number },
+    { key: 'dept', header: t('details.department'), render: (m) => m.department?.name ?? '—' },
+    { key: 'by', header: t('details.by'), render: (m) => m.actor.full_name },
   ]
 
   return (
     <div>
       <PageHeader
         title={`${b.sku} — ${b.name}`}
-        description="Inventory balance and full movement history."
-        actions={<Link to={`/products/${b.product_id}`}><Button variant="outline">Product detail</Button></Link>}
+        description={t('pages.productInventoryDescription')}
+        actions={<Link to={`/products/${b.product_id}`}><Button variant="outline">{t('actions.productDetail')}</Button></Link>}
       />
       <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="p-4"><p className="text-xs uppercase text-slate-500">Quantity</p><p className="text-2xl font-semibold">{formatQty(b.quantity)} {b.unit}</p></Card>
-        <Card className="p-4"><p className="text-xs uppercase text-slate-500">Minimum</p><p className="text-2xl font-semibold">{formatQty(b.min_stock)}</p></Card>
-        {user?.role === 'SUPERVISOR' && <Card className="p-4"><p className="text-xs uppercase text-slate-500">Stock value</p><p className="text-2xl font-semibold">{formatCurrency(b.stock_value)}</p></Card>}
-        <Card className="p-4"><p className="text-xs uppercase text-slate-500">Stock health</p><div className="mt-1">{b.is_low_stock ? <StatusBadge status="PENDING" /> : <StatusBadge status="FULFILLED" />}</div></Card>
+        <Card className="p-4"><p className="text-xs uppercase text-slate-500">{t('details.quantity')}</p><p className="text-2xl font-semibold">{formatQty(b.quantity)} {b.unit}</p></Card>
+        <Card className="p-4"><p className="text-xs uppercase text-slate-500">{t('details.minimum')}</p><p className="text-2xl font-semibold">{formatQty(b.min_stock)}</p></Card>
+        {user?.role === 'SUPERVISOR' && <Card className="p-4"><p className="text-xs uppercase text-slate-500">{t('details.stockValue')}</p><p className="text-2xl font-semibold">{formatCurrency(b.stock_value)}</p></Card>}
+        <Card className="p-4"><p className="text-xs uppercase text-slate-500">{t('details.stockHealth')}</p><div className="mt-1"><Badge tone={b.is_low_stock ? 'amber' : 'green'}>{b.is_low_stock ? t('common.lowStock') : t('common.ok')}</Badge></div></Card>
       </div>
       <Card>
-        <CardHeader title="Movement history" action={<RangeDatePicker from={from} to={to} onFrom={(v) => { setFrom(v); setPage(1) }} onTo={(v) => { setTo(v); setPage(1) }} />} />
-        <DataTable columns={columns} rows={movements.data?.items ?? []} loading={movements.isLoading} error={movements.error} onRetry={() => movements.refetch()} emptyTitle="No movements in this range" />
+        <CardHeader title={t('details.movementHistory')} action={<RangeDatePicker from={from} to={to} onFrom={(v) => { setFrom(v); setPage(1) }} onTo={(v) => { setTo(v); setPage(1) }} />} />
+        <DataTable columns={columns} rows={movements.data?.items ?? []} loading={movements.isLoading} error={movements.error} onRetry={() => movements.refetch()} emptyTitle={t('empty.noMovementsInRange')} />
         {movements.data && <Pagination meta={movements.data.meta} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />}
       </Card>
     </div>
