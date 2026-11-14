@@ -9,6 +9,12 @@ export const accounts = {
   staffFin: { email: 'staff.fin@wms.local', password: 'Staff123!' },
 }
 
+export function appPath(path: string): string {
+  const base = new URL(process.env.E2E_BASE_URL || 'http://localhost:3000')
+  const prefix = base.pathname.replace(/\/$/, '')
+  return `${base.origin}${prefix}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 interface Envelope<T> { data: T }
 interface Ref { id: string }
 interface Product { id: string; sku: string }
@@ -27,9 +33,9 @@ export function idempotencyKey(): string {
 }
 
 export async function loginUI(page: Page, email: string, password: string) {
-  await page.goto('/login')
-  await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(password)
+  await page.goto(appPath('/login'))
+  await page.getByLabel('Email', { exact: true }).fill(email)
+  await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await page.waitForURL('**/dashboard')
   await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible()

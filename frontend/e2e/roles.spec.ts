@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { accounts, loginUI } from './helpers'
+import { accounts, appPath, loginUI } from './helpers'
 
 const allItems = ['Dashboard', 'Products', 'Inventory', 'Receiving', 'Stock Requests', 'Returns', 'Adjustments', 'Reports', 'Users', 'Notifications']
 
@@ -38,7 +38,7 @@ for (const role of cases) {
       await expect(nav.getByRole('link', { name: item })).toHaveCount(0)
     }
     if (role.forbiddenPath) {
-      await page.goto(role.forbiddenPath)
+      await page.goto(appPath(role.forbiddenPath))
       await expect(page.getByText('Access denied')).toBeVisible()
     }
   })
