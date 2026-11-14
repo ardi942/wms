@@ -4,7 +4,9 @@ COPY package.json package-lock.json .npmrc ./
 RUN npm ci --no-audit --no-fund
 COPY . .
 ARG VITE_API_URL=/api/v1
+ARG VITE_BASE=/
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_BASE=$VITE_BASE
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine

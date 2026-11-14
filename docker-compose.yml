@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wms}
       POSTGRES_DB: ${POSTGRES_DB:-wms}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -36,7 +36,7 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-wms}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-wms}
     ports:
-      - "15672:15672"
+      - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmqdata:/var/lib/rabbitmq
     healthcheck:
@@ -91,7 +91,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       MIGRATIONS_PATH: /app/migrations
     ports:
-      - "${WMS_API_PORT:-8080}:8080"
+      - "127.0.0.1:${WMS_API_PORT:-8080}:8080"
     depends_on:
       seed:
         condition: service_completed_successfully
@@ -141,8 +141,9 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_BASE: ${VITE_BASE:-/}
     ports:
-      - "${WMS_FRONTEND_PORT:-3000}:8080"
+      - "${WMS_BIND_IP:-0.0.0.0}:${WMS_FRONTEND_PORT:-3000}:8080"
     depends_on:
       backend:
         condition: service_healthy
