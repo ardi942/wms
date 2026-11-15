@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"wms/backend/internal/audit"
 	"wms/backend/internal/auth"
 	"wms/backend/internal/cache"
 	"wms/backend/internal/category"
@@ -56,7 +57,10 @@ func main() {
 	jwtSvc := auth.NewJWT(cfg.JWTSecret, cfg.JWTTTL)
 	authSvc := auth.NewService(userRepo, jwtSvc)
 	authHandler := auth.NewHandler(authSvc)
-	userSvc := user.NewService(userRepo)
+	auditRepo := audit.NewRepository(db)
+	auditSvc := audit.NewService(auditRepo)
+	auditHandler := audit.NewHandler(auditSvc)
+	userSvc := user.NewService(db, userRepo, auditSvc)
 	userHandler := user.NewHandler(userSvc)
 	deptRepo := department.NewRepository(db)
 	deptHandler := department.NewHandler(deptRepo)
@@ -65,7 +69,7 @@ func main() {
 	unitRepo := unit.NewRepository(db)
 	unitHandler := unit.NewHandler(unitRepo)
 	productRepo := product.NewRepository(db)
-	productSvc := product.NewService(productRepo, warehouseID)
+	productSvc := product.NewService(db, productRepo, warehouseID, auditSvc)
 	productSvc.SetCache(redisCache)
 	productHandler := product.NewHandler(productSvc)
 	invRepo := inventory.NewRepository(db, warehouseID)
@@ -143,9 +147,9 @@ func main() {
 	authed.GET("/stock-requests/:id", reqHandler.Get)
 	authed.GET("/stock-returns", retHandler.List)
 	authed.GET("/stock-returns/:id", retHandler.Get)
-authed.GET("/reports/dashboard", reportHandler.Dashboard)
-authed.GET("/reports/dashboard/recent-movements", reportHandler.RecentMovements)
-authed.GET("/reports/department-usage", reportHandler.DepartmentUsage)
+	authed.GET("/reports/dashboard", reportHandler.Dashboard)
+	authed.GET("/reports/dashboard/recent-movements", reportHandler.RecentMovements)
+	authed.GET("/reports/department-usage", reportHandler.DepartmentUsage)
 	authed.GET("/reports/export", reportHandler.Export)
 	authed.GET("/notifications", notifHandler.List)
 	authed.GET("/notifications/unread-count", notifHandler.UnreadCount)
@@ -157,6 +161,8 @@ authed.GET("/reports/department-usage", reportHandler.DepartmentUsage)
 	admin.POST("/users", userHandler.Create)
 	admin.GET("/users/:id", userHandler.Get)
 	admin.PATCH("/users/:id", userHandler.Update)
+	admin.POST("/users/:id/activate", userHandler.Activate)
+	admin.POST("/users/:id/deactivate", userHandler.Deactivate)
 	admin.POST("/categories", categoryHandler.Create)
 	admin.PATCH("/categories/:id", categoryHandler.Update)
 	admin.POST("/units", unitHandler.Create)
@@ -177,6 +183,11 @@ authed.GET("/reports/department-usage", reportHandler.DepartmentUsage)
 
 	productEditors := authed.Group("", middleware.RequireRoles(user.RoleSupervisor, user.RoleWarehouseAdmin))
 	productEditors.PATCH("/products/:id", productHandler.Update)
+
+	history := authed.Group("", middleware.RequireRoles(user.RoleSupervisor, user.RoleWarehouseAdmin))
+	history.GET("/audit", auditHandler.List)
+	history.GET("/users/:id/history", userHandler.History)
+	history.GET("/products/:id/history", productHandler.History)
 
 	reporters := authed.Group("", middleware.RequireRoles(user.RoleSupervisor, user.RoleWarehouseAdmin))
 	reporters.GET("/reports/inventory", reportHandler.Inventory)

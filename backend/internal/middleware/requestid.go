@@ -3,9 +3,10 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"wms/backend/internal/httpx"
 )
 
-const RequestIDKey = "wms.request_id"
+const RequestIDKey = httpx.RequestIDKey
 
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -20,7 +21,5 @@ func RequestID() gin.HandlerFunc {
 }
 
 func GetRequestID(c *gin.Context) string {
-	v, _ := c.Get(RequestIDKey)
-	s, _ := v.(string)
-	return s
+	return httpx.RequestID(c)
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"wms/backend/internal/audit"
 	"wms/backend/internal/httpx"
 )
 
@@ -43,7 +44,7 @@ func (h *Handler) Create(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	dto, err := h.svc.Create(c.Request.Context(), in)
+	dto, err := h.svc.Create(c.Request.Context(), in, actor(c))
 	if err != nil {
 		httpx.WriteError(c, err)
 		return
@@ -62,12 +63,68 @@ func (h *Handler) Update(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	dto, uerr := h.svc.Update(c.Request.Context(), id, in)
+	dto, uerr := h.svc.Update(c.Request.Context(), id, in, actor(c))
 	if uerr != nil {
 		httpx.WriteError(c, uerr)
 		return
 	}
 	httpx.OK(c, dto)
+}
+
+func (h *Handler) Activate(c *gin.Context) {
+	h.setActive(c, true)
+}
+
+func (h *Handler) Deactivate(c *gin.Context) {
+	h.setActive(c, false)
+}
+
+func (h *Handler) setActive(c *gin.Context, active bool) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.WriteError(c, httpx.NotFound("user not found"))
+		return
+	}
+	var in StatusInput
+	if err := httpx.BindJSON(c, &in); err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	var dto *DTO
+	var changed bool
+	if active {
+		dto, changed, err = h.svc.Activate(c.Request.Context(), id, in.Reason, actor(c))
+	} else {
+		dto, changed, err = h.svc.Deactivate(c.Request.Context(), id, in.Reason, actor(c))
+	}
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	httpx.OKWithMeta(c, dto, gin.H{"changed": changed})
+}
+
+func (h *Handler) History(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.WriteError(c, httpx.NotFound("user not found"))
+		return
+	}
+	p, perr := httpx.ParsePagination(c)
+	if perr != nil {
+		httpx.WriteError(c, perr)
+		return
+	}
+	items, total, herr := h.svc.History(c.Request.Context(), id, p.Page, p.PageSize)
+	if herr != nil {
+		httpx.WriteError(c, herr)
+		return
+	}
+	httpx.List(c, items, httpx.NewMeta(p, total))
+}
+
+func actor(c *gin.Context) audit.Actor {
+	return audit.ActorFromIdentity(httpx.MustIdentity(c), httpx.RequestID(c))
 }
 
 func (h *Handler) Get(c *gin.Context) {

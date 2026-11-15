@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"wms/backend/internal/audit"
 	"wms/backend/internal/cache"
 	"wms/backend/internal/httpx"
 	"wms/backend/internal/user"
@@ -20,13 +22,15 @@ import (
 var skuPattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9_-]{1,31}$`)
 
 type Service struct {
+	db          *gorm.DB
 	repo        *Repository
 	warehouseID uuid.UUID
 	cache       *cache.Cache
+	audit       *audit.Service
 }
 
-func NewService(repo *Repository, warehouseID uuid.UUID) *Service {
-	return &Service{repo: repo, warehouseID: warehouseID}
+func NewService(db *gorm.DB, repo *Repository, warehouseID uuid.UUID, auditSvc *audit.Service) *Service {
+	return &Service{db: db, repo: repo, warehouseID: warehouseID, audit: auditSvc}
 }
 
 func (s *Service) SetCache(c *cache.Cache) { s.cache = c }
@@ -43,13 +47,13 @@ type ListFilter struct {
 }
 
 type CreateInput struct {
-	SKU         string     `json:"sku" binding:"required"`
-	Name        string     `json:"name" binding:"required,min=2,max=200"`
-	Description *string    `json:"description" binding:"omitempty,max=2000"`
-	CategoryID  uuid.UUID  `json:"category_id" binding:"required"`
-	UnitID      uuid.UUID  `json:"unit_id" binding:"required"`
-	MinStock    int        `json:"min_stock" binding:"gte=0"`
-	UnitCost    *float64   `json:"unit_cost" binding:"omitempty,gte=0"`
+	SKU         string    `json:"sku" binding:"required"`
+	Name        string    `json:"name" binding:"required,min=2,max=200"`
+	Description *string   `json:"description" binding:"omitempty,max=2000"`
+	CategoryID  uuid.UUID `json:"category_id" binding:"required"`
+	UnitID      uuid.UUID `json:"unit_id" binding:"required"`
+	MinStock    int       `json:"min_stock" binding:"gte=0"`
+	UnitCost    *float64  `json:"unit_cost" binding:"omitempty,gte=0"`
 }
 
 type UpdateInput struct {
@@ -189,73 +193,150 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*DTO, error) {
 	return s.Get(ctx, p.ID, user.RoleWarehouseAdmin)
 }
 
-func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput, role string) (*DTO, error) {
-	existing, err := s.repo.Get(ctx, id, s.warehouseID)
+func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput, role string, actor audit.Actor) (*DTO, error) {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		existing, err := txRepo.GetForUpdate(ctx, id)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return httpx.NotFound("product not found")
+			}
+			return err
+		}
+		before := productSnapshot(existing)
+		after := audit.CloneMap(before)
+		fields := map[string]any{}
+
+		if in.SKU != nil {
+			sku := strings.ToUpper(strings.TrimSpace(*in.SKU))
+			if !skuPattern.MatchString(sku) {
+				return httpx.FieldError("sku", "must match ^[A-Z0-9][A-Z0-9_-]{1,31}$")
+			}
+			if sku != existing.SKU {
+				has, err := txRepo.HasMovements(ctx, id)
+				if err != nil {
+					return err
+				}
+				if has {
+					return httpx.Conflict("CONFLICT", "SKU cannot be changed after stock transactions exist", nil)
+				}
+				exists, err := txRepo.ExistsSKU(ctx, sku, &id)
+				if err != nil {
+					return err
+				}
+				if exists {
+					return httpx.Conflict("DUPLICATE", "SKU already exists", nil)
+				}
+				fields["sku"] = sku
+				after["sku"] = sku
+			}
+		}
+		if in.Name != nil {
+			name := strings.TrimSpace(*in.Name)
+			if len(name) < 2 {
+				return httpx.FieldError("name", "must be at least 2 characters")
+			}
+			if existing.Name != name {
+				fields["name"] = name
+				after["name"] = name
+			}
+		}
+		if in.Description != nil {
+			next := trimPtr(in.Description)
+			if !sameDescription(existing.Description, next) {
+				fields["description"] = next
+				after["description"] = descriptionValue(next)
+			}
+		}
+		if in.CategoryID != nil {
+			if err := validateRefsWith(ctx, txRepo, *in.CategoryID, existing.UnitID); err != nil {
+				return err
+			}
+			if existing.CategoryID != *in.CategoryID {
+				fields["category_id"] = *in.CategoryID
+				after["category_id"] = in.CategoryID.String()
+			}
+		}
+		if in.UnitID != nil {
+			if err := validateRefsWith(ctx, txRepo, existing.CategoryID, *in.UnitID); err != nil {
+				return err
+			}
+			if existing.UnitID != *in.UnitID {
+				fields["unit_id"] = *in.UnitID
+				after["unit_id"] = in.UnitID.String()
+			}
+		}
+		if in.MinStock != nil && existing.MinStock != *in.MinStock {
+			fields["min_stock"] = *in.MinStock
+			after["min_stock"] = *in.MinStock
+		}
+		if in.UnitCost != nil && !sameFloat(existing.UnitCost, in.UnitCost) {
+			fields["unit_cost"] = *in.UnitCost
+			after["unit_cost"] = *in.UnitCost
+		}
+		if in.IsActive != nil && existing.IsActive != *in.IsActive {
+			fields["is_active"] = *in.IsActive
+			after["is_active"] = *in.IsActive
+		}
+		if len(fields) == 0 {
+			return nil
+		}
+		if err := txRepo.Update(ctx, id, fields); err != nil {
+			return err
+		}
+
+		changed := audit.ChangedFields(before, after)
+		other := audit.Excluding(changed, "unit_cost", "is_active")
+		if len(other) > 0 {
+			if err := s.audit.Record(ctx, tx, audit.Entry{
+				EntityType:    audit.EntityProduct,
+				EntityID:      id,
+				Action:        audit.ActionProductUpdated,
+				EntityLabel:   existing.SKU + " — " + existing.Name,
+				Actor:         actor,
+				ChangedFields: other,
+				Before:        audit.Subset(before, other),
+				After:         audit.Subset(after, other),
+			}); err != nil {
+				return err
+			}
+		}
+		if slices.Contains(changed, "unit_cost") {
+			if err := s.audit.Record(ctx, tx, audit.Entry{
+				EntityType:    audit.EntityProduct,
+				EntityID:      id,
+				Action:        audit.ActionProductCost,
+				EntityLabel:   existing.SKU + " — " + existing.Name,
+				Actor:         actor,
+				ChangedFields: []string{"unit_cost"},
+				Before:        audit.Subset(before, []string{"unit_cost"}),
+				After:         audit.Subset(after, []string{"unit_cost"}),
+			}); err != nil {
+				return err
+			}
+		}
+		if slices.Contains(changed, "is_active") {
+			action := audit.ActionProductActivated
+			if !*in.IsActive {
+				action = audit.ActionProductDeactivated
+			}
+			if err := s.audit.Record(ctx, tx, audit.Entry{
+				EntityType:    audit.EntityProduct,
+				EntityID:      id,
+				Action:        action,
+				EntityLabel:   existing.SKU + " — " + existing.Name,
+				Actor:         actor,
+				ChangedFields: []string{"is_active"},
+				Before:        audit.Subset(before, []string{"is_active"}),
+				After:         audit.Subset(after, []string{"is_active"}),
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, httpx.NotFound("product not found")
-		}
 		return nil, err
-	}
-	fields := map[string]any{}
-	if in.SKU != nil {
-		sku := strings.ToUpper(strings.TrimSpace(*in.SKU))
-		if !skuPattern.MatchString(sku) {
-			return nil, httpx.FieldError("sku", "must match ^[A-Z0-9][A-Z0-9_-]{1,31}$")
-		}
-		if sku != existing.SKU {
-			has, err := s.repo.HasMovements(ctx, id)
-			if err != nil {
-				return nil, err
-			}
-			if has {
-				return nil, httpx.Conflict("CONFLICT", "SKU cannot be changed after stock transactions exist", nil)
-			}
-			exists, err := s.repo.ExistsSKU(ctx, sku, &id)
-			if err != nil {
-				return nil, err
-			}
-			if exists {
-				return nil, httpx.Conflict("DUPLICATE", "SKU already exists", nil)
-			}
-			fields["sku"] = sku
-		}
-	}
-	if in.Name != nil {
-		name := strings.TrimSpace(*in.Name)
-		if len(name) < 2 {
-			return nil, httpx.FieldError("name", "must be at least 2 characters")
-		}
-		fields["name"] = name
-	}
-	if in.Description != nil {
-		fields["description"] = trimPtr(in.Description)
-	}
-	if in.CategoryID != nil {
-		if err := s.validateRefs(ctx, *in.CategoryID, existing.UnitID); err != nil {
-			return nil, err
-		}
-		fields["category_id"] = *in.CategoryID
-	}
-	if in.UnitID != nil {
-		if err := s.validateRefs(ctx, existing.CategoryID, *in.UnitID); err != nil {
-			return nil, err
-		}
-		fields["unit_id"] = *in.UnitID
-	}
-	if in.MinStock != nil {
-		fields["min_stock"] = *in.MinStock
-	}
-	if in.UnitCost != nil {
-		fields["unit_cost"] = *in.UnitCost
-	}
-	if in.IsActive != nil {
-		fields["is_active"] = *in.IsActive
-	}
-	if len(fields) > 0 {
-		if err := s.repo.Update(ctx, id, fields); err != nil {
-			return nil, err
-		}
 	}
 	if s.cache != nil {
 		s.cache.InvalidateProduct(ctx)
@@ -263,15 +344,29 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput, role
 	return s.Get(ctx, id, role)
 }
 
+func (s *Service) History(ctx context.Context, id uuid.UUID, page, pageSize int, role string) ([]audit.DTO, int64, error) {
+	if _, err := s.repo.Get(ctx, id, s.warehouseID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, httpx.NotFound("product not found")
+		}
+		return nil, 0, err
+	}
+	return s.audit.HistoryFor(ctx, audit.EntityProduct, id, page, pageSize, role == user.RoleSupervisor)
+}
+
 func (s *Service) validateRefs(ctx context.Context, categoryID, unitID uuid.UUID) error {
-	ok, err := s.repo.RefExists(ctx, "categories", categoryID)
+	return validateRefsWith(ctx, s.repo, categoryID, unitID)
+}
+
+func validateRefsWith(ctx context.Context, repo *Repository, categoryID, unitID uuid.UUID) error {
+	ok, err := repo.RefExists(ctx, "categories", categoryID)
 	if err != nil {
 		return err
 	}
 	if !ok {
 		return httpx.FieldError("category_id", "category does not exist")
 	}
-	ok, err = s.repo.RefExists(ctx, "units", unitID)
+	ok, err = repo.RefExists(ctx, "units", unitID)
 	if err != nil {
 		return err
 	}
@@ -281,21 +376,62 @@ func (s *Service) validateRefs(ctx context.Context, categoryID, unitID uuid.UUID
 	return nil
 }
 
+func productSnapshot(p *Product) map[string]any {
+	return map[string]any{
+		"sku":         p.SKU,
+		"name":        p.Name,
+		"description": descriptionValue(p.Description),
+		"category_id": p.CategoryID.String(),
+		"unit_id":     p.UnitID.String(),
+		"min_stock":   p.MinStock,
+		"unit_cost":   costValue(p.UnitCost),
+		"is_active":   p.IsActive,
+	}
+}
+
+func descriptionValue(v *string) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+func costValue(v *float64) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+func sameDescription(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
+func sameFloat(a, b *float64) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
 func toDTO(r *row) DTO {
 	return DTO{
-		ID:          r.ID,
-		SKU:         r.SKU,
-		Name:        r.Name,
-		Description: r.Description,
-		Category:    CategoryRef{ID: r.CategoryID, Name: r.CategoryName},
-		Unit:        UnitRef{ID: r.UnitID, Code: r.UnitCode, Name: r.UnitName},
-		MinStock:    r.MinStock,
-		UnitCost:    r.UnitCost,
-		IsActive:    r.IsActive,
+		ID:           r.ID,
+		SKU:          r.SKU,
+		Name:         r.Name,
+		Description:  r.Description,
+		Category:     CategoryRef{ID: r.CategoryID, Name: r.CategoryName},
+		Unit:         UnitRef{ID: r.UnitID, Code: r.UnitCode, Name: r.UnitName},
+		MinStock:     r.MinStock,
+		UnitCost:     r.UnitCost,
+		IsActive:     r.IsActive,
 		CurrentStock: r.Quantity,
-		IsLowStock:  r.MinStock > 0 && r.Quantity < r.MinStock,
-		CreatedAt:   r.CreatedAt,
-		UpdatedAt:   r.UpdatedAt,
+		IsLowStock:   r.MinStock > 0 && r.Quantity < r.MinStock,
+		CreatedAt:    r.CreatedAt,
+		UpdatedAt:    r.UpdatedAt,
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"wms/backend/internal/audit"
 	"wms/backend/internal/httpx"
 )
 
@@ -88,10 +89,29 @@ func (h *Handler) Update(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	dto, serr := h.svc.Update(c.Request.Context(), id, in, httpx.MustIdentity(c).Role)
+	dto, serr := h.svc.Update(c.Request.Context(), id, in, httpx.MustIdentity(c).Role, audit.ActorFromIdentity(httpx.MustIdentity(c), httpx.RequestID(c)))
 	if serr != nil {
 		httpx.WriteError(c, serr)
 		return
 	}
 	httpx.OK(c, dto)
+}
+
+func (h *Handler) History(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.WriteError(c, httpx.NotFound("product not found"))
+		return
+	}
+	p, perr := httpx.ParsePagination(c)
+	if perr != nil {
+		httpx.WriteError(c, perr)
+		return
+	}
+	items, total, serr := h.svc.History(c.Request.Context(), id, p.Page, p.PageSize, httpx.MustIdentity(c).Role)
+	if serr != nil {
+		httpx.WriteError(c, serr)
+		return
+	}
+	httpx.List(c, items, httpx.NewMeta(p, total))
 }

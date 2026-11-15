@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Boxes, ClipboardList, LayoutDashboard, LogOut, Menu, MoreHorizontal, Package, RotateCcw, ScrollText, SlidersHorizontal, Truck, Users, X } from 'lucide-react'
+import { Bell, Boxes, ClipboardList, History, LayoutDashboard, LogOut, Menu, MoreHorizontal, Package, RotateCcw, ScrollText, SlidersHorizontal, Truck, Users, X } from 'lucide-react'
 import { useAuth } from '../../auth/AuthProvider'
 import { useT } from '../../i18n/I18nProvider'
 import { notificationApi } from '../../api/endpoints'
@@ -19,6 +19,7 @@ const icons: Record<string, typeof LayoutDashboard> = {
   '/returns': RotateCcw,
   '/adjustments': SlidersHorizontal,
   '/reports': ScrollText,
+  '/audit': History,
   '/users': Users,
   '/notifications': Bell,
 }

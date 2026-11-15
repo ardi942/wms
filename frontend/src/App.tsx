@@ -20,6 +20,7 @@ import { ReportsPage } from './features/reports/ReportsPage'
 import { UserListPage } from './features/users/UserListPage'
 import { UserFormPage } from './features/users/UserFormPage'
 import { NotificationsPage } from './features/notifications/NotificationsPage'
+import { AuditHistoryPage } from './features/audit/AuditHistoryPage'
 import { Button } from './components/ui'
 import { useT } from './i18n/I18nProvider'
 
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/returns/:id" element={<ReturnDetailPage />} />
           <Route path="/adjustments" element={<RoleGate roles={['WAREHOUSE_ADMIN']}><AdjustmentPage /></RoleGate>} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/audit" element={<RoleGate roles={['WAREHOUSE_ADMIN', 'SUPERVISOR']}><AuditHistoryPage /></RoleGate>} />
           <Route path="/users" element={<RoleGate roles={['WAREHOUSE_ADMIN']}><UserListPage /></RoleGate>} />
           <Route path="/users/new" element={<RoleGate roles={['WAREHOUSE_ADMIN']}><UserFormPage /></RoleGate>} />
           <Route path="/users/:id/edit" element={<RoleGate roles={['WAREHOUSE_ADMIN']}><UserFormPage /></RoleGate>} />

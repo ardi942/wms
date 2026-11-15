@@ -9,6 +9,7 @@ import { Badge, Button, Card, CardHeader } from '../../components/ui'
 import { ConfirmDialog, DataTable, ErrorState, Loading, PageHeader, type Column } from '../../components/common'
 import { useT } from '../../i18n/I18nProvider'
 import { formatCurrency, formatDateTime, formatQty } from '../../lib/format'
+import { AuditEventTable } from '../audit/AuditEventTable'
 import type { Movement } from '../../types'
 
 export function ProductDetailPage() {
@@ -19,15 +20,20 @@ export function ProductDetailPage() {
   const queryClient = useQueryClient()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const canEdit = user?.role === 'WAREHOUSE_ADMIN' || user?.role === 'SUPERVISOR'
   const product = useQuery({ queryKey: ['product', id], queryFn: () => productApi.get(id!) })
   const movements = useQuery({ queryKey: ['movements', { product_id: id }], queryFn: () => inventoryApi.movements({ product_id: id, page_size: 10 }) })
+  const history = useQuery({
+    queryKey: ['product-history', id],
+    queryFn: () => productApi.history(id!, { page: 1, page_size: 20 }),
+    enabled: Boolean(id) && canEdit,
+  })
 
   if (product.isLoading) return <Loading />
   if (product.error) return <ErrorState error={product.error} onRetry={() => product.refetch()} />
   const p = product.data!.data
   const isAdmin = user?.role === 'WAREHOUSE_ADMIN'
   const isSupervisor = user?.role === 'SUPERVISOR'
-  const canEdit = isAdmin || isSupervisor
 
   const toggleActive = async () => {
     setSaving(true)
@@ -36,6 +42,7 @@ export function ProductDetailPage() {
       toast.success(p.is_active ? t('toast.productDeactivated') : t('toast.productActivated'))
       await queryClient.invalidateQueries({ queryKey: ['product', id] })
       await queryClient.invalidateQueries({ queryKey: ['products'] })
+      await queryClient.invalidateQueries({ queryKey: ['product-history', id] })
       setConfirmOpen(false)
     } catch {
       toast.error(t('toast.productUpdateFailed'))
@@ -92,6 +99,18 @@ export function ProductDetailPage() {
         <CardHeader title={t('details.recentMovements')} action={<Link className="text-sm text-brand-600" to={`/inventory/${p.id}`}>{t('common.view')}</Link>} />
         <DataTable columns={columns} rows={movements.data?.items ?? []} loading={movements.isLoading} error={movements.error} emptyTitle={t('empty.noMovements')} />
       </Card>
+      {canEdit && (
+        <Card className="mt-4">
+          <CardHeader title={t('audit.productHistory')} description={t('audit.productHistoryDescription')} />
+          <AuditEventTable
+            events={history.data?.items ?? []}
+            loading={history.isLoading}
+            error={history.error}
+            onRetry={() => history.refetch()}
+            showSubject={false}
+          />
+        </Card>
+      )}
       <ConfirmDialog
         open={confirmOpen}
         title={p.is_active ? t('dialogs.deactivateProduct') : t('dialogs.activateProduct')}

@@ -34,17 +34,17 @@ type UnitRef struct {
 }
 
 type DTO struct {
-	ID           uuid.UUID    `json:"id"`
-	SKU          string       `json:"sku"`
-	Name         string       `json:"name"`
-	Description  *string      `json:"description"`
-	Category     CategoryRef  `json:"category"`
-	Unit         UnitRef      `json:"unit"`
-	MinStock     int          `json:"min_stock"`
-	UnitCost     *float64     `json:"unit_cost"`
-	IsActive     bool         `json:"is_active"`
-	CurrentStock int          `json:"current_stock"`
-	IsLowStock   bool         `json:"is_low_stock"`
-	CreatedAt    time.Time    `json:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at"`
+	ID           uuid.UUID   `json:"id"`
+	SKU          string      `json:"sku"`
+	Name         string      `json:"name"`
+	Description  *string     `json:"description"`
+	Category     CategoryRef `json:"category"`
+	Unit         UnitRef     `json:"unit"`
+	MinStock     int         `json:"min_stock"`
+	UnitCost     *float64    `json:"unit_cost"`
+	IsActive     bool        `json:"is_active"`
+	CurrentStock int         `json:"current_stock"`
+	IsLowStock   bool        `json:"is_low_stock"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
 }

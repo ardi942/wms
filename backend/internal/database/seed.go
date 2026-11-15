@@ -155,6 +155,7 @@ func Reset(db *gorm.DB) error {
 			stock_request_items, stock_requests,
 			stock_movements, inventory_balances,
 			notifications, outbox_events, processed_events, idempotency_keys,
+			audit_logs,
 			users, products, warehouses, units, categories, departments
 			RESTART IDENTITY CASCADE`).Error; err != nil {
 			return err
@@ -231,7 +232,6 @@ func seedUsersInto(tx *gorm.DB, departments map[string]uuid.UUID) error {
 				full_name = EXCLUDED.full_name,
 				role = EXCLUDED.role,
 				department_id = EXCLUDED.department_id,
-				is_active = true,
 				updated_at = EXCLUDED.updated_at`,
 			uuid.Must(uuid.NewV7()), u.Email, hash, u.FullName, u.Role, deptID, now, now).Error; err != nil {
 			return err
@@ -266,7 +266,7 @@ func seedProductsInto(tx *gorm.DB, inv *inventory.Repository, adminID uuid.UUID,
 				return nil, err
 			}
 		} else {
-			if err := tx.Exec(`UPDATE products SET name = ?, description = ?, category_id = ?, unit_id = ?, min_stock = ?, unit_cost = ?, is_active = true, updated_at = ? WHERE id = ?`,
+			if err := tx.Exec(`UPDATE products SET name = ?, description = ?, category_id = ?, unit_id = ?, min_stock = ?, unit_cost = ?, updated_at = ? WHERE id = ?`,
 				p.Name, p.Description, categoryID, unitID, p.MinStock, p.Cost, now, productID).Error; err != nil {
 				return nil, err
 			}

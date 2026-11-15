@@ -6,6 +6,8 @@ frontend/test-results/
 frontend/playwright-report/
 *.log
 .DS_Store
-docs/
+docs/*
+!docs/audit-history/
+!docs/audit-history/**
 *.bak-*
 *.tsbuildinfo

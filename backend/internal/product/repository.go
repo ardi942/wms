@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type row struct {
@@ -40,6 +41,20 @@ type Filter struct {
 type Repository struct{ db *gorm.DB }
 
 func NewRepository(db *gorm.DB) *Repository { return &Repository{db: db} }
+
+func (r *Repository) WithTx(tx *gorm.DB) *Repository { return &Repository{db: tx} }
+
+func (r *Repository) GetForUpdate(ctx context.Context, id uuid.UUID) (*Product, error) {
+	var product Product
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&product).Error
+	if err != nil {
+		return nil, err
+	}
+	return &product, nil
+}
 
 const selectCols = `
   p.id, p.sku, p.name, p.description,

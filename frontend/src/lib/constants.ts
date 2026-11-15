@@ -15,6 +15,19 @@ export const navItems: Array<{ to: string; key: string; roles: Role[] }> = [
   { to: '/returns', key: 'nav.returns', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
   { to: '/adjustments', key: 'nav.adjustments', roles: ['WAREHOUSE_ADMIN'] },
   { to: '/reports', key: 'nav.reports', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
+  { to: '/audit', key: 'nav.audit', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN'] },
   { to: '/users', key: 'nav.users', roles: ['WAREHOUSE_ADMIN'] },
   { to: '/notifications', key: 'nav.notifications', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },
 ]
+
+export const auditActions = [
+  'USER_CREATED',
+  'USER_ACTIVATED',
+  'USER_DEACTIVATED',
+  'USER_PROFILE_UPDATED',
+  'USER_PASSWORD_CHANGED',
+  'PRODUCT_COST_UPDATED',
+  'PRODUCT_ACTIVATED',
+  'PRODUCT_DEACTIVATED',
+  'PRODUCT_UPDATED',
+] as const

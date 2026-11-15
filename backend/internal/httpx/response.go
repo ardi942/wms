@@ -7,7 +7,7 @@ import (
 )
 
 type envelope struct {
-	Data any  `json:"data"`
+	Data any   `json:"data"`
 	Meta *Meta `json:"meta,omitempty"`
 }
 
@@ -23,6 +23,10 @@ type errorBody struct {
 
 func OK(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, envelope{Data: data})
+}
+
+func OKWithMeta(c *gin.Context, data any, meta any) {
+	c.JSON(http.StatusOK, gin.H{"data": data, "meta": meta})
 }
 
 func Created(c *gin.Context, data any) {

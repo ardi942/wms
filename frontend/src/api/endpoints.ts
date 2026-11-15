@@ -1,5 +1,6 @@
 import { api, toQuery } from './client'
 import type {
+  AuditEvent,
   Category,
   Dashboard,
   Department,
@@ -51,6 +52,7 @@ export const productApi = {
   get: (id: string) => api.get<Envelope<Product>>(`/products/${id}`),
   create: (body: unknown) => api.post<Envelope<Product>>('/products', body),
   update: (id: string, body: unknown) => api.patch<Envelope<Product>>(`/products/${id}`, body),
+  history: (id: string, params?: Record<string, unknown>) => list<AuditEvent>(`/products/${id}/history`, params),
 }
 
 export const inventoryApi = {
@@ -94,6 +96,13 @@ export const userApi = {
   get: (id: string) => api.get<Envelope<User>>(`/users/${id}`),
   create: (body: unknown) => api.post<Envelope<User>>('/users', body),
   update: (id: string, body: unknown) => api.patch<Envelope<User>>(`/users/${id}`, body),
+  activate: (id: string, reason: string) => api.post<Envelope<User>>(`/users/${id}/activate`, { reason }),
+  deactivate: (id: string, reason: string) => api.post<Envelope<User>>(`/users/${id}/deactivate`, { reason }),
+  history: (id: string, params?: Record<string, unknown>) => list<AuditEvent>(`/users/${id}/history`, params),
+}
+
+export const auditApi = {
+  list: (params: Record<string, unknown>) => list<AuditEvent>('/audit', params),
 }
 
 export const notificationApi = {

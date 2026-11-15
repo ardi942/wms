@@ -192,6 +192,42 @@ export interface Meta {
   total_pages: number
 }
 
+export type AuditEntityType = 'USER' | 'PRODUCT' | 'CATEGORY' | 'UNIT'
+export type AuditAction =
+  | 'USER_CREATED'
+  | 'USER_ACTIVATED'
+  | 'USER_DEACTIVATED'
+  | 'USER_PROFILE_UPDATED'
+  | 'USER_PASSWORD_CHANGED'
+  | 'PRODUCT_COST_UPDATED'
+  | 'PRODUCT_ACTIVATED'
+  | 'PRODUCT_DEACTIVATED'
+  | 'PRODUCT_UPDATED'
+
+export interface AuditActor {
+  id: string
+  full_name: string
+  email: string
+  role: Role
+}
+
+export interface AuditEvent {
+  id: string
+  entity_type: AuditEntityType
+  entity_id: string
+  entity_label: string
+  action: AuditAction
+  actor: AuditActor
+  reason: string | null
+  changed_fields: string[]
+  before: Record<string, unknown> | null
+  after: Record<string, unknown> | null
+  redacted_fields: string[]
+  request_id: string | null
+  created_at: string
+}
+
+
 export interface ListResult<T> {
   items: T[]
   meta: Meta

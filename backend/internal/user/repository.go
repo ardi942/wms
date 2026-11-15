@@ -6,15 +6,30 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Repository struct{ db *gorm.DB }
 
 func NewRepository(db *gorm.DB) *Repository { return &Repository{db: db} }
 
+func (r *Repository) WithTx(tx *gorm.DB) *Repository { return &Repository{db: tx} }
+
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var u User
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&u).Error
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (r *Repository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*User, error) {
+	var u User
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&u).Error
 	if err != nil {
 		return nil, err
 	}
