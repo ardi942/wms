@@ -63,7 +63,7 @@ export function LoginPage() {
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
-      <div className="hidden lg:flex-col justify-between bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900 p-10 lg:text-white">
+      <div className="hidden lg:flex lg:flex-col justify-between bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900 p-10 lg:text-white">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-500 text-xl font-bold">W</div>
           <div>
