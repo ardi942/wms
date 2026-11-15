@@ -52,10 +52,10 @@ export function auditChangeSummary(event: AuditEvent, t: Translator): string {
 }
 
 function rowsFor(event: AuditEvent, side: 'before' | 'after', t: Translator): Array<{ field: string; value: ReactNode }> {
-  const values = event[side]
-  if (!values) return []
-  return Object.keys(values)
-    .filter((field) => event.changed_fields.includes(field) || field === 'is_active' || field === 'unit_cost')
+  const values = event[side] ?? {}
+  const fields = new Set([...Object.keys(values), ...event.redacted_fields])
+  return Array.from(fields)
+    .filter((field) => event.changed_fields.includes(field) || field === 'is_active' || field === 'unit_cost' || event.redacted_fields.includes(field))
     .map((field) => ({ field, value: fieldValue(event, field, values[field], t) }))
 }
 

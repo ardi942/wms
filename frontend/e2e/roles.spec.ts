@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { accounts, appPath, loginUI } from './helpers'
 
-const allItems = ['Dashboard', 'Products', 'Inventory', 'Receiving', 'Stock Requests', 'Returns', 'Adjustments', 'Reports', 'Users', 'Notifications']
+const allItems = ['Dashboard', 'Products', 'Inventory', 'Receiving', 'Stock Requests', 'Returns', 'Adjustments', 'Reports', 'Audit', 'Users', 'Notifications']
 
 const cases = [
   {
     name: 'supervisor',
     account: accounts.supervisor,
-    visible: ['Dashboard', 'Products', 'Inventory', 'Stock Requests', 'Returns', 'Reports', 'Notifications'],
+    visible: ['Dashboard', 'Products', 'Inventory', 'Stock Requests', 'Returns', 'Reports', 'Audit', 'Notifications'],
     hidden: ['Receiving', 'Adjustments', 'Users'],
     forbiddenPath: '/adjustments',
   },
@@ -22,7 +22,7 @@ const cases = [
     name: 'department user',
     account: accounts.staff,
     visible: ['Dashboard', 'Products', 'Inventory', 'Stock Requests', 'Returns', 'Reports', 'Notifications'],
-    hidden: ['Receiving', 'Adjustments', 'Users'],
+    hidden: ['Receiving', 'Adjustments', 'Audit', 'Users'],
     forbiddenPath: '/users',
   },
 ]

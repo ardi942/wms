@@ -18,6 +18,7 @@ export function appPath(path: string): string {
 interface Envelope<T> { data: T }
 interface Ref { id: string }
 interface Product { id: string; sku: string }
+interface User { id: string; email: string; full_name: string; is_active: boolean }
 interface StockRequest { id: string; request_number: string }
 interface StockReturn { id: string; return_number: string }
 
@@ -89,6 +90,41 @@ export async function createProduct(
     unit_cost: 10,
   })
   return body.data
+}
+
+export async function createUser(
+  request: APIRequestContext,
+  token: string,
+  email: string,
+  fullName: string,
+): Promise<User> {
+  const departments = await authed<Envelope<Ref[]>>(request, token, 'GET', '/departments')
+  const body = await authed<Envelope<User>>(request, token, 'POST', '/users', {
+    email,
+    full_name: fullName,
+    password: 'Staff123!',
+    department_id: departments.data[0].id,
+  })
+  return body.data
+}
+
+export async function setUserActive(
+  request: APIRequestContext,
+  token: string,
+  userId: string,
+  active: boolean,
+  reason: string,
+): Promise<void> {
+  await authed(request, token, 'POST', `/users/${userId}/${active ? 'activate' : 'deactivate'}`, { reason })
+}
+
+export async function updateProductCost(
+  request: APIRequestContext,
+  token: string,
+  productId: string,
+  unitCost: number,
+): Promise<void> {
+  await authed(request, token, 'PATCH', `/products/${productId}`, { unit_cost: unitCost })
 }
 
 export async function receiveStock(

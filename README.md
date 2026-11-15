@@ -2,7 +2,7 @@
 
 A multi-department warehouse management MVP: a React SPA, a Go REST API, PostgreSQL, Redis, RabbitMQ and a Go worker.
 
-Features include product catalogue and inventory, receiving/adjustments, multi-line stock requests with partial fulfilment, guarded stock returns, role-specific dashboards, CSV reports, notifications and audited append-only stock movements.
+Features include product catalogue and inventory, receiving/adjustments, multi-line stock requests with partial fulfilment, guarded stock returns, role-specific dashboards, CSV reports, notifications, audited append-only stock movements, and an immutable account/product audit history with required reasons for user activation changes.
 
 ## Stack
 
@@ -97,6 +97,7 @@ frontend (React SPA) ──/api──> backend (Gin) ──> PostgreSQL
 ```
 
 - **Stock is append-only.** Every change inserts a `stock_movements` row and updates `inventory_balances` in the same transaction. A database trigger rejects updates/deletes on movements.
+- **Audit history is append-only.** User creation/status/profile/password changes and product cost/status/profile changes write an `audit_logs` row in the same transaction. Actor snapshots, reasons, before/after values and request IDs are retained; a trigger rejects updates/deletes. Product cost values are redacted for Warehouse Admin readers.
 - **No oversell.** Fulfilment locks balances with `SELECT ... FOR UPDATE`, validates remaining stock, then applies movements.
 - **Returns are capped** by the department's net issued quantity (`issued - returned`) for each product, enforced under advisory locks.
 - **Transactional outbox** guarantees events are published after commit. The relay uses `FOR UPDATE SKIP LOCKED`, retry backoff, and `PENDING`/`PUBLISHED`/`FAILED` states.
@@ -108,9 +109,9 @@ frontend (React SPA) ──/api──> backend (Gin) ──> PostgreSQL
 ```
 backend/
   cmd/{api,worker,seed,migrate}
-  internal/{auth,user,department,category,unit,product,inventory,stockrequest,stockreturn,report,notification}
+  internal/{auth,user,department,category,unit,product,inventory,stockrequest,stockreturn,report,notification,audit}
   internal/{cache,messaging,worker,idempotency,middleware,httpx,database,config}
-  migrations/0001..0008_*.{up,down}.sql
+  migrations/0001..0009_*.{up,down}.sql
 frontend/
   src/{api,auth,components,features,lib,types,test}
   e2e/
@@ -161,9 +162,11 @@ All responses use `{ "data": ..., "meta": ... }`; errors use `{ "error": { "code
 - `/api/v1/stock-returns` (+ `/:id/confirm`, `/:id/reject`, `/:id/cancel`)
 - `/api/v1/reports/{dashboard,inventory,stock-movements,department-usage,low-stock,export}`
 - `/api/v1/users`, `/departments`, `/categories`, `/units`
+- `/api/v1/users/:id/{activate,deactivate,history}`, `/api/v1/products/:id/history`
+- `/api/v1/audit` — read-only audit history for Warehouse Admin and Supervisor
 - `/api/v1/notifications`
 
-Mutating document endpoints require `Idempotency-Key` (8–128 characters). The frontend supplies one automatically.
+Mutating document endpoints require `Idempotency-Key` (8–128 characters). The frontend supplies one automatically. User activation/deactivation requires a trimmed reason of 5–500 characters; `PATCH /users/:id` rejects `is_active`.
 
 ## Operations
 

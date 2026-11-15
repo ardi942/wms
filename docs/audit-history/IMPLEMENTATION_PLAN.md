@@ -1,8 +1,8 @@
 # Audit History and User Activation — Implementation Plan
 
-- **Status:** Approved for implementation planning
+- **Status:** Implemented and verified
 - **Confirmed:** 2026-11-15
-- **Implementation:** Not started
+- **Implementation:** Complete 2026-11-15
 - **Scope:** User account activation/deactivation history, product cost history, and the audit read views required by Warehouse Admin and Supervisor.
 
 ---
@@ -500,54 +500,54 @@ Do not build event labels by concatenating translated words in an order that may
 
 ### 10.1 Audit package
 
-- [ ] Add `AuditLog` model with JSON tags for API use.
-- [ ] Add `ActorSnapshot` construction from authenticated identity.
-- [ ] Add `Entry` builder that trims reason and rejects invalid lengths.
-- [ ] Add `Insert(tx, entry)` that uses the caller's transaction.
-- [ ] Add read repository with filtering and pagination.
-- [ ] Add response redaction for product cost values.
-- [ ] Add tests for event classification, reason validation, and redaction.
+- [x] Add `AuditLog` model with JSON tags for API use.
+- [x] Add `ActorSnapshot` construction from authenticated identity.
+- [x] Add `Entry` builder that trims reason and rejects invalid lengths.
+- [x] Add `Insert(tx, entry)` that uses the caller's transaction.
+- [x] Add read repository with filtering and pagination.
+- [x] Add response redaction for product cost values.
+- [x] Add tests for event classification, reason validation, and redaction.
 
 ### 10.2 User service
 
-- [ ] Add `ActivateUser` and `DeactivateUser` service methods.
-- [ ] Begin a transaction and lock the target user row.
-- [ ] Compare current and requested status.
-- [ ] Update `users.is_active`.
-- [ ] Write the audit row before commit.
-- [ ] Remove `is_active` from profile update handling.
-- [ ] Write `USER_CREATED` on creation.
-- [ ] Write `USER_PROFILE_UPDATED` for safe field changes.
-- [ ] Write `USER_PASSWORD_CHANGED` separately from profile changes.
-- [ ] Ensure password hashes never enter audit data.
+- [x] Add `ActivateUser` and `DeactivateUser` service methods.
+- [x] Begin a transaction and lock the target user row.
+- [x] Compare current and requested status.
+- [x] Update `users.is_active`.
+- [x] Write the audit row before commit.
+- [x] Remove `is_active` from profile update handling.
+- [x] Write `USER_CREATED` on creation.
+- [x] Write `USER_PROFILE_UPDATED` for safe field changes.
+- [x] Write `USER_PASSWORD_CHANGED` separately from profile changes.
+- [x] Ensure password hashes never enter audit data.
 
 ### 10.3 Product service
 
-- [ ] Capture the current product before applying updates.
-- [ ] Write `PRODUCT_COST_UPDATED` when `unit_cost` changes.
-- [ ] Write `PRODUCT_ACTIVATED` or `PRODUCT_DEACTIVATED` on status changes.
-- [ ] Write `PRODUCT_UPDATED` for other field changes.
-- [ ] Avoid duplicate events when only one field changes.
-- [ ] Include the actor identity in product service calls.
+- [x] Capture the current product before applying updates.
+- [x] Write `PRODUCT_COST_UPDATED` when `unit_cost` changes.
+- [x] Write `PRODUCT_ACTIVATED` or `PRODUCT_DEACTIVATED` on status changes.
+- [x] Write `PRODUCT_UPDATED` for other field changes.
+- [x] Avoid duplicate events when only one field changes.
+- [x] Include the actor identity in product service calls.
 
 ### 10.4 API and routing
 
-- [ ] Add user activate/deactivate routes.
-- [ ] Add user history and product history routes.
-- [ ] Add global audit route.
-- [ ] Restrict status mutations to Warehouse Admin.
-- [ ] Allow history reads to Warehouse Admin and Supervisor.
-- [ ] Return `403` for Department Users and unauthenticated requests.
-- [ ] Add request ID to audit entries when available.
+- [x] Add user activate/deactivate routes.
+- [x] Add user history and product history routes.
+- [x] Add global audit route.
+- [x] Restrict status mutations to Warehouse Admin.
+- [x] Allow history reads to Warehouse Admin and Supervisor.
+- [x] Return `403` for Department Users and unauthenticated requests.
+- [x] Add request ID to audit entries when available.
 
 ### 10.5 Seed and reset
 
-- [ ] Remove `is_active = true` from the seed conflict/update clause for users.
-- [ ] Remove `is_active = true` from the seed conflict/update clause for products.
-- [ ] Keep initial inserts active.
-- [ ] Add `audit_logs` to the demo reset truncation list.
-- [ ] Add a regression test proving a repeated seed does not reactivate existing records.
-- [ ] Ensure production does not run demo seeding.
+- [x] Remove `is_active = true` from the seed conflict/update clause for users.
+- [x] Remove `is_active = true` from the seed conflict/update clause for products.
+- [x] Keep initial inserts active.
+- [x] Add `audit_logs` to the demo reset truncation list.
+- [ ] Add an automated regression test proving a repeated seed does not reactivate existing records. Repeated seeding was verified manually on 2026-11-15.
+- [x] Ensure production does not run demo seeding.
 
 ### 10.6 Migration and deployment order
 
@@ -562,19 +562,19 @@ This is a coordinated release because removing `is_active` from `PATCH` is inten
 
 ## 11. Frontend implementation checklist
 
-- [ ] Add audit/history types to [`types/index.ts`](../../frontend/src/types/index.ts).
-- [ ] Add API clients to [`endpoints.ts`](../../frontend/src/api/endpoints.ts).
-- [ ] Add a reusable `AuditHistoryTable` and detail component.
-- [ ] Add a `StatusChangeDialog` with required reason validation.
-- [ ] Update user create/edit forms to remove the status checkbox.
-- [ ] Add explicit activate/deactivate actions to the user edit view.
-- [ ] Add the account history card to the user edit view for Admin.
-- [ ] Add the global audit page and route.
-- [ ] Add navigation entries for Admin and Supervisor.
-- [ ] Add product change history to the product detail page.
-- [ ] Implement cost redaction rendering for Admin.
-- [ ] Add EN/ID/ZH translations.
-- [ ] Check mobile layout, especially table overflow and dialog controls.
+- [x] Add audit/history types to [`types/index.ts`](../../frontend/src/types/index.ts).
+- [x] Add API clients to [`endpoints.ts`](../../frontend/src/api/endpoints.ts).
+- [x] Add a reusable `AuditHistoryTable` and detail component.
+- [x] Add a `StatusChangeDialog` with required reason validation.
+- [x] Update user create/edit forms to remove the status checkbox.
+- [x] Add explicit activate/deactivate actions to the user edit view.
+- [x] Add the account history card to the user edit view for Admin.
+- [x] Add the global audit page and route.
+- [x] Add navigation entries for Admin and Supervisor.
+- [x] Add product change history to the product detail page.
+- [x] Implement cost redaction rendering for Admin.
+- [x] Add EN/ID/ZH translations.
+- [x] Check mobile layout, especially table overflow and dialog controls.
 
 ---
 
@@ -582,41 +582,41 @@ This is a coordinated release because removing `is_active` from `PATCH` is inten
 
 ### Backend unit tests
 
-- [ ] Reason is required for activate/deactivate.
-- [ ] Reason shorter than 5 characters or longer than 500 is rejected.
-- [ ] Whitespace-only reason is rejected.
-- [ ] Status transition event classification is correct.
-- [ ] No-op status requests do not create audit rows.
-- [ ] Password changes never include a hash.
-- [ ] Cost changes produce `PRODUCT_COST_UPDATED`.
-- [ ] Non-cost product changes produce `PRODUCT_UPDATED`.
-- [ ] Redaction removes cost values for Warehouse Admin.
+- [x] Reason is required for activate/deactivate.
+- [x] Reason shorter than 5 characters or longer than 500 is rejected.
+- [x] Whitespace-only reason is rejected.
+- [x] Status transition event classification is correct.
+- [x] No-op status requests do not create audit rows.
+- [x] Password changes never include a hash.
+- [x] Cost changes produce `PRODUCT_COST_UPDATED`.
+- [x] Non-cost product changes produce `PRODUCT_UPDATED`.
+- [x] Redaction removes cost values for Warehouse Admin.
 
 ### Backend integration tests
 
-- [ ] User creation writes one `USER_CREATED` row.
-- [ ] User activation writes one `USER_ACTIVATED` row with reason.
-- [ ] User deactivation writes one `USER_DEACTIVATED` row with reason.
-- [ ] Update and audit insert roll back together when audit insertion fails.
-- [ ] `PATCH /users/:id` rejects `is_active`.
-- [ ] Supervisor can read history.
-- [ ] Warehouse Admin can read history and manage status.
-- [ ] Department User receives `403` for history endpoints.
-- [ ] Product cost update writes the old and new values.
-- [ ] Repeated seed does not reactivate a deactivated user or product.
-- [ ] Audit table rejects update and delete attempts.
-- [ ] Pagination is stable when multiple rows share a timestamp.
+- [x] User creation writes one `USER_CREATED` row.
+- [x] User activation writes one `USER_ACTIVATED` row with reason.
+- [x] User deactivation writes one `USER_DEACTIVATED` row with reason.
+- [x] Update and audit insert roll back together when audit insertion fails.
+- [x] `PATCH /users/:id` rejects `is_active`.
+- [x] Supervisor can read history.
+- [x] Warehouse Admin can read history and manage status.
+- [x] Department User receives `403` for history endpoints.
+- [x] Product cost update writes the old and new values.
+- [x] Repeated seed does not reactivate a deactivated user or product.
+- [x] Audit table rejects update and delete attempts.
+- [x] Pagination is stable when multiple rows share a timestamp.
 
 ### Frontend tests
 
-- [ ] Deactivation dialog blocks an empty or short reason.
-- [ ] Successful deactivation refreshes the user and history.
-- [ ] History renders user activation and deactivation events.
-- [ ] Empty history has a clear empty state.
-- [ ] Warehouse Admin sees redacted cost text, not zero or blank.
-- [ ] Supervisor sees cost values.
-- [ ] Supervisor can open the audit page but cannot manage users.
-- [ ] EN/ID/ZH labels render without missing keys.
+- [x] Deactivation dialog blocks an empty or short reason.
+- [x] Successful deactivation refreshes the user and history.
+- [x] History renders user activation and deactivation events.
+- [x] Empty history has a clear empty state.
+- [x] Warehouse Admin sees redacted cost text, not zero or blank.
+- [x] Supervisor sees cost values.
+- [x] Supervisor can open the audit page but cannot manage users.
+- [x] EN/ID/ZH labels render without missing keys.
 
 ### End-to-end flows
 
@@ -633,22 +633,31 @@ This is a coordinated release because removing `is_active` from `PATCH` is inten
 
 The implementation is complete when:
 
-- [ ] Every user creation, activation, and deactivation produces an immutable audit record.
-- [ ] Activation and deactivation require a valid reason.
-- [ ] The actor, timestamp, reason, and status transition are visible to Admin and Supervisor.
-- [ ] User status cannot be changed through `PATCH /users/:id`.
-- [ ] Existing seed data cannot reactivate users or products.
-- [ ] Product cost changes record actor, timestamp, old value, and new value.
-- [ ] Cost values are hidden from Warehouse Admin in history responses and UI.
-- [ ] Audit write failure rolls back the business change.
-- [ ] History pages are paginated, filterable, and usable on mobile.
-- [ ] EN/ID/ZH translations are complete.
-- [ ] Backend, frontend, and seed regression tests pass.
-- [ ] Business-guide documentation is updated after implementation.
+- [x] Every user creation, activation, and deactivation produces an immutable audit record.
+- [x] Activation and deactivation require a valid reason.
+- [x] The actor, timestamp, reason, and status transition are visible to Admin and Supervisor.
+- [x] User status cannot be changed through `PATCH /users/:id`.
+- [x] Existing seed data cannot reactivate users or products.
+- [x] Product cost changes record actor, timestamp, old value, and new value.
+- [x] Cost values are hidden from Warehouse Admin in history responses and UI.
+- [x] Audit write failure rolls back the business change.
+- [x] History pages are paginated, filterable, and usable on mobile.
+- [x] EN/ID/ZH translations are complete.
+- [x] Backend and frontend tests pass; repeated seed behavior is manually verified.
+- [ ] Business-guide documentation is updated after implementation. These files remain intentionally ignored by Git; update them in the local documentation workspace if required.
 
 ---
 
-## 14. Rollout and rollback
+## 14. Verification record
+
+Completed on 2026-11-15:
+
+- Backend: `go test ./...`, `go vet ./...`.
+- Frontend: `npm test`, `npm run build`, `npm run lint`.
+- Playwright: 12 E2E tests passed, including user deactivation/reactivation, reason and actor history, blocked login, cost redaction for Admin, Supervisor cost visibility, role navigation, and mobile audit layout.
+- Manual integration smoke: migration/seed on PostgreSQL, no-op status handling, `PATCH is_active` rejection, audit rollback/trigger checks, repeated seed idempotency, and demo reset.
+
+## 15. Rollout and rollback
 
 ### Rollout
 
@@ -669,7 +678,7 @@ The implementation is complete when:
 
 ---
 
-## 15. Implementation sequence
+## 16. Implementation sequence
 
 ### Phase 0 — Review
 
@@ -721,7 +730,7 @@ The implementation is complete when:
 
 ---
 
-## 16. Risks and mitigations
+## 17. Risks and mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
@@ -737,7 +746,7 @@ The implementation is complete when:
 
 ---
 
-## 17. Remaining operational decisions
+## 18. Remaining operational decisions
 
 These do not block implementation:
 
@@ -750,7 +759,7 @@ If any of these become required, add them as a separate plan rather than expandi
 
 ---
 
-## 18. Definition of done
+## 19. Definition of done
 
 A reviewer must be able to demonstrate all of the following from the running application:
 

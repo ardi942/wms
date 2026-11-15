@@ -29,6 +29,7 @@ describe('AuditEventTable', () => {
     )
     expect(screen.getAllByText('Unit cost updated').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Unit cost changed (value hidden)').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Hidden').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Wahyu Pratama').length).toBeGreaterThan(0)
   })
 

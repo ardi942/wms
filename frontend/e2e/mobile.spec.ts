@@ -24,6 +24,13 @@ test('E2E-M1 mobile navigation, responsive lists and logout work', async ({ page
   await expect(page.getByTestId('data-table-mobile')).toBeVisible()
 
   await page.getByRole('button', { name: 'More' }).click()
+  await page.getByRole('dialog', { name: 'Main navigation' }).getByRole('link', { name: 'Audit' }).click()
+  await expect(page).toHaveURL(/\/audit$/)
+  await expect(page.getByRole('heading', { name: 'Audit history' })).toBeVisible()
+  const auditOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+  expect(auditOverflow).toBeLessThanOrEqual(1)
+
+  await page.getByRole('button', { name: 'More' }).click()
   await page.getByRole('dialog', { name: 'Main navigation' }).getByRole('button', { name: 'Log out' }).click()
   await expect(page).toHaveURL(/\/login(\?|$)/)
 })
