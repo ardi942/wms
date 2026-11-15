@@ -174,6 +174,32 @@ export interface StockReturnList {
   updated_at: string
 }
 
+export interface MonitoringRequestRow {
+  id: string
+  request_number: string
+  status: RequestStatus
+  department: DepartmentRef
+  requested_by: ActorRef
+  item_count: number
+  total_requested: number
+  total_issued: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MonitoringReturnRow {
+  id: string
+  return_number: string
+  status: ReturnStatus
+  department: DepartmentRef
+  requested_by: ActorRef
+  item_count: number
+  total_requested: number
+  total_accepted: number
+  created_at: string
+  updated_at: string
+}
+
 export interface Notification {
   id: string
   type: string

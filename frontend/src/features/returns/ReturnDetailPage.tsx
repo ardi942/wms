@@ -1,25 +1,40 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { returnApi } from '../../api/endpoints'
 import { ApiError } from '../../api/client'
 import { Button, Card, CardHeader, Input, Textarea } from '../../components/ui'
-import { ConfirmDialog, ErrorState, Loading, PageHeader, StatusBadge, WorkflowStepper } from '../../components/common'
+import { AutoRefreshIndicator, ConfirmDialog, ErrorState, Loading, PageHeader, StatusBadge, WorkflowStepper } from '../../components/common'
 import { useT } from '../../i18n/I18nProvider'
+import { MONITORING_POLL_MS } from '../../lib/constants'
 import { formatDateTime, formatQty } from '../../lib/format'
+
+const terminalStatuses = new Set(['CONFIRMED', 'REJECTED', 'CANCELLED'])
 
 export function ReturnDetailPage() {
   const { id } = useParams()
   const { t } = useT()
   const queryClient = useQueryClient()
-  const ret = useQuery({ queryKey: ['return', id], queryFn: () => returnApi.get(id!) })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [accepted, setAccepted] = useState<Record<string, number>>({})
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
+  const dialogOpen = confirmOpen || rejectOpen || cancelOpen
+  const ret = useQuery({
+    queryKey: ['return', id],
+    queryFn: () => returnApi.get(id!),
+    refetchInterval: (query) => {
+      const status = query.state.data?.data?.status
+      if (!status || terminalStatuses.has(status) || dialogOpen) return false
+      return MONITORING_POLL_MS
+    },
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
+  })
 
   const row = ret.data?.data
   useEffect(() => {
@@ -104,6 +119,12 @@ export function ReturnDetailPage() {
         })}
         actions={
           <>
+            <AutoRefreshIndicator
+              updatedAt={ret.dataUpdatedAt}
+              intervalMs={MONITORING_POLL_MS}
+              isFetching={ret.isFetching}
+              onRefresh={() => ret.refetch()}
+            />
             <Link to="/returns"><Button variant="outline">{t('common.back')}</Button></Link>
             {can('reject') && <Button variant="danger" onClick={() => setRejectOpen(true)}>{t('actions.reject')}</Button>}
             {can('confirm') && <Button onClick={() => setConfirmOpen(true)}>{t('dialogs.confirmReturn')}</Button>}

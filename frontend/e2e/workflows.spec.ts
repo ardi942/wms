@@ -78,8 +78,32 @@ test('E2E-2 department request is fulfilled by the admin', async ({ browser, req
   await admin.getByRole('button', { name: 'Fulfil request', exact: true }).click()
   await expect(admin.locator('dl').getByText('Fulfilled', { exact: true })).toBeVisible()
 
-  await dept.reload()
-  await expect(dept.locator('dl').getByText('Fulfilled', { exact: true })).toBeVisible()
+  await expect(dept.locator('dl').getByText('Fulfilled', { exact: true })).toBeVisible({ timeout: 20_000 })
+})
+
+test('E2E-10 cross-division monitoring updates without reload', async ({ browser, request }) => {
+  const adminToken = await apiLogin(request, accounts.admin.email, accounts.admin.password)
+  const staffToken = await apiLogin(request, accounts.staff.email, accounts.staff.password)
+  const sku = unique('E2E')
+  const product = await createProduct(request, adminToken, sku)
+  await receiveStock(request, adminToken, product.id, 50)
+  const created = await createRequest(request, staffToken, product.id, 5)
+
+  const fin = await browser.newContext()
+  const page = await fin.newPage()
+  await loginUI(page, accounts.staffFin.email, accounts.staffFin.password)
+  await page.goto(appPath('/monitoring'))
+
+  const row = page.getByRole('row').filter({ hasText: created.request_number })
+  await expect(row).toContainText('Pending')
+  await expect(page.getByRole('button', { name: /fulfil|reject|cancel|confirm/i })).toHaveCount(0)
+
+  const itemId = await requestItemId(request, staffToken, created.id)
+  await fulfillRequest(request, adminToken, created.id, itemId, 5)
+
+  await expect(row).toContainText('Fulfilled', { timeout: 20_000 })
+  await page.getByRole('button', { name: 'Returns' }).click()
+  await expect(page.getByRole('button', { name: 'Returns' })).toHaveClass(/bg-brand-600/)
 })
 
 test('E2E-3 partial fulfilment updates status and drains stock', async ({ browser, request }) => {

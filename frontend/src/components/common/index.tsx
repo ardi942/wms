@@ -8,7 +8,7 @@ import { productApi } from '../../api/endpoints'
 import type { Product } from '../../types'
 import { Button, Card, Input, Select, Spinner, Badge } from '../ui'
 import { cn } from '../../lib/utils'
-import { formatQty, statusLabel, statusTone } from '../../lib/format'
+import { formatQty, formatTime, statusLabel, statusTone } from '../../lib/format'
 import { PAGE_SIZES } from '../../lib/constants'
 import type { Meta } from '../../types'
 
@@ -29,6 +29,42 @@ export function Loading({ label }: { label?: string }) {
   return (
     <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
       <Spinner /> {label ?? t('common.loading')}
+    </div>
+  )
+}
+
+export function AutoRefreshIndicator({
+  updatedAt,
+  intervalMs,
+  isFetching,
+  onRefresh,
+}: {
+  updatedAt: number
+  intervalMs: number
+  isFetching: boolean
+  onRefresh: () => void
+}) {
+  const { t } = useT()
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+      <span className="relative flex h-2 w-2" aria-hidden="true">
+        <span className={cn('absolute inline-flex h-full w-full rounded-full bg-emerald-400', isFetching && 'animate-ping')} />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+      </span>
+      <span>{t('common.autoRefresh', { seconds: Math.round(intervalMs / 1000) })}</span>
+      {updatedAt > 0 && (
+        <span aria-live="polite">{t('common.lastUpdated', { time: formatTime(updatedAt) })}</span>
+      )}
+      <button
+        type="button"
+        onClick={onRefresh}
+        aria-label={t('common.refreshNow')}
+        title={t('common.refreshNow')}
+        className="grid h-8 w-8 place-items-center rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+        disabled={isFetching}
+      >
+        <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
+      </button>
     </div>
   )
 }

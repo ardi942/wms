@@ -10,6 +10,8 @@ import type {
   LoginResult,
   LowStockReportRow,
   Meta,
+  MonitoringRequestRow,
+  MonitoringReturnRow,
   Movement,
   Notification,
   Product,
@@ -79,6 +81,11 @@ export const returnApi = {
   confirm: (id: string, body: unknown) => api.post<Envelope<StockReturn>>(`/stock-returns/${id}/confirm`, body),
   reject: (id: string, body: unknown) => api.post<Envelope<StockReturn>>(`/stock-returns/${id}/reject`, body),
   cancel: (id: string) => api.post<Envelope<StockReturn>>(`/stock-returns/${id}/cancel`),
+}
+
+export const monitoringApi = {
+  requests: (params: Record<string, unknown>) => list<MonitoringRequestRow>('/monitoring/requests', params),
+  returns: (params: Record<string, unknown>) => list<MonitoringReturnRow>('/monitoring/returns', params),
 }
 
 export const reportApi = {

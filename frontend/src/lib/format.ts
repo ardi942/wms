@@ -4,12 +4,14 @@ let activeLocale = 'en-US'
 let integer = new Intl.NumberFormat(activeLocale)
 let dateTime = new Intl.DateTimeFormat(activeLocale, { dateStyle: 'medium', timeStyle: 'short' })
 let dateOnly = new Intl.DateTimeFormat(activeLocale, { dateStyle: 'medium' })
+let timeOnly = new Intl.DateTimeFormat(activeLocale, { timeStyle: 'medium' })
 
 export function setFormatLocale(locale: string): void {
   activeLocale = locale
   integer = new Intl.NumberFormat(locale)
   dateTime = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' })
   dateOnly = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
+  timeOnly = new Intl.DateTimeFormat(locale, { timeStyle: 'medium' })
 }
 
 export function getFormatLocale(): string {
@@ -34,6 +36,11 @@ export function formatDateTime(value: string | null | undefined): string {
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
   return dateOnly.format(new Date(value))
+}
+
+export function formatTime(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  return timeOnly.format(new Date(value))
 }
 
 export function todayInput(): string {

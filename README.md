@@ -2,7 +2,7 @@
 
 A multi-department warehouse management MVP: a React SPA, a Go REST API, PostgreSQL, Redis, RabbitMQ and a Go worker.
 
-Features include product catalogue and inventory, receiving/adjustments, multi-line stock requests with partial fulfilment, guarded stock returns, role-specific dashboards, CSV reports, notifications, audited append-only stock movements, and an immutable account/product audit history with required reasons for user activation changes.
+Features include product catalogue and inventory, receiving/adjustments, multi-line stock requests with partial fulfilment, guarded stock returns, cross-division status monitoring with live polling, role-specific dashboards, CSV reports, notifications, audited append-only stock movements, and an immutable account/product audit history with required reasons for user activation changes.
 
 ## Stack
 
@@ -160,6 +160,7 @@ All responses use `{ "data": ..., "meta": ... }`; errors use `{ "error": { "code
 - `/api/v1/products`, `/inventory`, `/inventory/movements`, `/inventory/receipts`, `/inventory/adjustments`
 - `/api/v1/stock-requests` (+ `/:id/fulfill`, `/:id/reject`, `/:id/cancel`)
 - `/api/v1/stock-returns` (+ `/:id/confirm`, `/:id/reject`, `/:id/cancel`)
+- `/api/v1/monitoring/requests`, `/api/v1/monitoring/returns` — read-only cross-division status; the frontend refreshes every 15 seconds while visible
 - `/api/v1/reports/{dashboard,inventory,stock-movements,department-usage,low-stock,export}`
 - `/api/v1/users`, `/departments`, `/categories`, `/units`
 - `/api/v1/users/:id/{activate,deactivate,history}`, `/api/v1/products/:id/history`

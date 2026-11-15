@@ -147,6 +147,8 @@ func main() {
 	authed.GET("/stock-requests/:id", reqHandler.Get)
 	authed.GET("/stock-returns", retHandler.List)
 	authed.GET("/stock-returns/:id", retHandler.Get)
+	authed.GET("/monitoring/requests", reqHandler.MonitorList)
+	authed.GET("/monitoring/returns", retHandler.MonitorList)
 	authed.GET("/reports/dashboard", reportHandler.Dashboard)
 	authed.GET("/reports/dashboard/recent-movements", reportHandler.RecentMovements)
 	authed.GET("/reports/department-usage", reportHandler.DepartmentUsage)

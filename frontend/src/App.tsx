@@ -15,6 +15,7 @@ import { RequestDetailPage } from './features/requests/RequestDetailPage'
 import { ReturnListPage } from './features/returns/ReturnListPage'
 import { ReturnCreatePage } from './features/returns/ReturnCreatePage'
 import { ReturnDetailPage } from './features/returns/ReturnDetailPage'
+import { MonitoringPage } from './features/monitoring/MonitoringPage'
 import { AdjustmentPage } from './features/adjustments/AdjustmentPage'
 import { ReportsPage } from './features/reports/ReportsPage'
 import { UserListPage } from './features/users/UserListPage'
@@ -74,6 +75,7 @@ export default function App() {
           <Route path="/returns" element={<ReturnListPage />} />
           <Route path="/returns/new" element={<RoleGate roles={['DEPARTMENT_USER']}><ReturnCreatePage /></RoleGate>} />
           <Route path="/returns/:id" element={<ReturnDetailPage />} />
+          <Route path="/monitoring" element={<MonitoringPage />} />
           <Route path="/adjustments" element={<RoleGate roles={['WAREHOUSE_ADMIN']}><AdjustmentPage /></RoleGate>} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/audit" element={<RoleGate roles={['WAREHOUSE_ADMIN', 'SUPERVISOR']}><AuditHistoryPage /></RoleGate>} />

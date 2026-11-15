@@ -1,32 +1,47 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { inventoryApi, requestApi } from '../../api/endpoints'
 import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthProvider'
 import { Button, Card, CardHeader, Input, Textarea } from '../../components/ui'
-import { ConfirmDialog, ErrorState, Loading, PageHeader, StatusBadge, WorkflowStepper } from '../../components/common'
+import { AutoRefreshIndicator, ConfirmDialog, ErrorState, Loading, PageHeader, StatusBadge, WorkflowStepper } from '../../components/common'
 import { useT } from '../../i18n/I18nProvider'
+import { MONITORING_POLL_MS } from '../../lib/constants'
 import { formatDateTime, formatQty } from '../../lib/format'
+
+const terminalStatuses = new Set(['FULFILLED', 'REJECTED', 'CANCELLED'])
 
 export function RequestDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
   const { t } = useT()
   const queryClient = useQueryClient()
-  const request = useQuery({ queryKey: ['request', id], queryFn: () => requestApi.get(id!) })
-  const balances = useQuery({
-    queryKey: ['inventory', { fulfill: id }],
-    queryFn: () => inventoryApi.balances({ page_size: 50 }),
-    enabled: user?.role === 'WAREHOUSE_ADMIN',
-  })
   const [fulfillOpen, setFulfillOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [issued, setIssued] = useState<Record<string, number>>({})
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
+  const dialogOpen = fulfillOpen || rejectOpen || cancelOpen
+  const request = useQuery({
+    queryKey: ['request', id],
+    queryFn: () => requestApi.get(id!),
+    refetchInterval: (query) => {
+      const status = query.state.data?.data?.status
+      if (!status || terminalStatuses.has(status) || dialogOpen) return false
+      return MONITORING_POLL_MS
+    },
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
+  })
+  const balances = useQuery({
+    queryKey: ['inventory', { fulfill: id }],
+    queryFn: () => inventoryApi.balances({ page_size: 50 }),
+    enabled: user?.role === 'WAREHOUSE_ADMIN',
+  })
 
   const req = request.data?.data
   useEffect(() => {
@@ -114,6 +129,12 @@ export function RequestDetailPage() {
         })}
         actions={
           <>
+            <AutoRefreshIndicator
+              updatedAt={request.dataUpdatedAt}
+              intervalMs={MONITORING_POLL_MS}
+              isFetching={request.isFetching}
+              onRefresh={() => request.refetch()}
+            />
             <Link to="/requests"><Button variant="outline">{t('common.back')}</Button></Link>
             {can('reject') && <Button variant="danger" onClick={() => setRejectOpen(true)}>{t('actions.reject')}</Button>}
             {can('fulfill') && <Button onClick={() => setFulfillOpen(true)}>{t('actions.fulfill')}</Button>}
