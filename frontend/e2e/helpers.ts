@@ -1,4 +1,6 @@
+import { Buffer } from 'node:buffer'
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
+import type { ImageFile } from './imageFixtures'
 
 const API = process.env.E2E_API_URL || 'http://localhost:8080/api/v1'
 
@@ -212,4 +214,98 @@ export async function getBalance(
     `/inventory/${productId}`,
   )
   return body.data.quantity
+}
+
+interface Me {
+  id: string
+  full_name: string
+}
+
+export async function apiMe(request: APIRequestContext, token: string): Promise<Me> {
+  const res = await request.get(`${API}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok()) throw new Error(`GET /auth/me failed: ${res.status()} ${await res.text()}`)
+  const body = (await res.json()) as Envelope<{ user: Me }>
+  return body.data.user
+}
+
+async function uploadImage(
+  request: APIRequestContext,
+  token: string,
+  path: string,
+  image: ImageFile,
+): Promise<void> {
+  const res = await request.post(`${API}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    multipart: { image },
+  })
+  if (!res.ok()) throw new Error(`POST ${path} failed: ${res.status()} ${await res.text()}`)
+}
+
+async function deleteImage(request: APIRequestContext, token: string, path: string): Promise<void> {
+  const res = await request.delete(`${API}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok()) throw new Error(`DELETE ${path} failed: ${res.status()} ${await res.text()}`)
+}
+
+export function uploadProductImage(
+  request: APIRequestContext,
+  token: string,
+  productId: string,
+  image: ImageFile,
+): Promise<void> {
+  return uploadImage(request, token, `/products/${productId}/image`, image)
+}
+
+export function deleteProductImage(
+  request: APIRequestContext,
+  token: string,
+  productId: string,
+): Promise<void> {
+  return deleteImage(request, token, `/products/${productId}/image`)
+}
+
+export function uploadUserImage(
+  request: APIRequestContext,
+  token: string,
+  userId: string,
+  image: ImageFile,
+): Promise<void> {
+  return uploadImage(request, token, `/users/${userId}/image`, image)
+}
+
+export function deleteUserImage(
+  request: APIRequestContext,
+  token: string,
+  userId: string,
+): Promise<void> {
+  return deleteImage(request, token, `/users/${userId}/image`)
+}
+
+export async function getImage(
+  request: APIRequestContext,
+  token: string,
+  path: string,
+): Promise<{ contentType: string; body: Buffer }> {
+  const res = await request.get(`${API}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok()) throw new Error(`GET ${path} failed: ${res.status()} ${await res.text()}`)
+  return {
+    contentType: res.headers()['content-type'] ?? '',
+    body: Buffer.from(await res.body()),
+  }
+}
+
+export async function imageStatus(
+  request: APIRequestContext,
+  token: string,
+  path: string,
+): Promise<number> {
+  const res = await request.get(`${API}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return res.status()
 }
