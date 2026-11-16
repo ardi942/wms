@@ -419,20 +419,30 @@ func sameFloat(a, b *float64) bool {
 
 func toDTO(r *row) DTO {
 	return DTO{
-		ID:           r.ID,
-		SKU:          r.SKU,
-		Name:         r.Name,
-		Description:  r.Description,
-		Category:     CategoryRef{ID: r.CategoryID, Name: r.CategoryName},
-		Unit:         UnitRef{ID: r.UnitID, Code: r.UnitCode, Name: r.UnitName},
-		MinStock:     r.MinStock,
-		UnitCost:     r.UnitCost,
-		IsActive:     r.IsActive,
-		CurrentStock: r.Quantity,
-		IsLowStock:   r.MinStock > 0 && r.Quantity < r.MinStock,
-		CreatedAt:    r.CreatedAt,
-		UpdatedAt:    r.UpdatedAt,
+		ID:             r.ID,
+		SKU:            r.SKU,
+		Name:           r.Name,
+		Description:    r.Description,
+		Category:       CategoryRef{ID: r.CategoryID, Name: r.CategoryName},
+		Unit:           UnitRef{ID: r.UnitID, Code: r.UnitCode, Name: r.UnitName},
+		MinStock:       r.MinStock,
+		UnitCost:       r.UnitCost,
+		IsActive:       r.IsActive,
+		CurrentStock:   r.Quantity,
+		IsLowStock:     r.MinStock > 0 && r.Quantity < r.MinStock,
+		ImageURL:       productImageURL(r.ID, r.ImageKey),
+		ImageUpdatedAt: r.ImageUpdatedAt,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
 	}
+}
+
+func productImageURL(id uuid.UUID, key *string) *string {
+	if key == nil || *key == "" {
+		return nil
+	}
+	url := "/products/" + id.String() + "/image"
+	return &url
 }
 
 func trimPtr(v *string) *string {

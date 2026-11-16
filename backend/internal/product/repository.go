@@ -11,21 +11,24 @@ import (
 )
 
 type row struct {
-	ID           uuid.UUID `gorm:"column:id"`
-	SKU          string    `gorm:"column:sku"`
-	Name         string    `gorm:"column:name"`
-	Description  *string   `gorm:"column:description"`
-	CategoryID   uuid.UUID `gorm:"column:category_id"`
-	CategoryName string    `gorm:"column:category_name"`
-	UnitID       uuid.UUID `gorm:"column:unit_id"`
-	UnitCode     string    `gorm:"column:unit_code"`
-	UnitName     string    `gorm:"column:unit_name"`
-	MinStock     int       `gorm:"column:min_stock"`
-	UnitCost     *float64  `gorm:"column:unit_cost"`
-	IsActive     bool      `gorm:"column:is_active"`
-	Quantity     int       `gorm:"column:quantity"`
-	CreatedAt    time.Time `gorm:"column:created_at"`
-	UpdatedAt    time.Time `gorm:"column:updated_at"`
+	ID             uuid.UUID  `gorm:"column:id"`
+	SKU            string     `gorm:"column:sku"`
+	Name           string     `gorm:"column:name"`
+	Description    *string    `gorm:"column:description"`
+	CategoryID     uuid.UUID  `gorm:"column:category_id"`
+	CategoryName   string     `gorm:"column:category_name"`
+	UnitID         uuid.UUID  `gorm:"column:unit_id"`
+	UnitCode       string     `gorm:"column:unit_code"`
+	UnitName       string     `gorm:"column:unit_name"`
+	MinStock       int        `gorm:"column:min_stock"`
+	UnitCost       *float64   `gorm:"column:unit_cost"`
+	IsActive       bool       `gorm:"column:is_active"`
+	ImageKey       *string    `gorm:"column:image_key"`
+	ImageMIME      *string    `gorm:"column:image_mime"`
+	ImageUpdatedAt *time.Time `gorm:"column:image_updated_at"`
+	Quantity       int        `gorm:"column:quantity"`
+	CreatedAt      time.Time  `gorm:"column:created_at"`
+	UpdatedAt      time.Time  `gorm:"column:updated_at"`
 }
 
 type Filter struct {
@@ -61,6 +64,7 @@ const selectCols = `
   p.category_id, c.name AS category_name,
   p.unit_id, u.code AS unit_code, u.name AS unit_name,
   p.min_stock, p.unit_cost, p.is_active,
+  p.image_key, p.image_mime, p.image_updated_at,
   COALESCE(b.quantity, 0) AS quantity,
   p.created_at, p.updated_at`
 
