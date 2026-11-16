@@ -1,12 +1,15 @@
 package product
 
 import (
+	"errors"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"wms/backend/internal/audit"
 	"wms/backend/internal/httpx"
+	"wms/backend/internal/media"
 )
 
 type Handler struct{ svc *Service }
@@ -97,6 +100,67 @@ func (h *Handler) Update(c *gin.Context) {
 	httpx.OK(c, dto)
 }
 
+func (h *Handler) GetImage(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.WriteError(c, httpx.NotFound("product not found"))
+		return
+	}
+	file, serr := h.svc.GetImage(c.Request.Context(), id, httpx.MustIdentity(c).Role)
+	if serr != nil {
+		httpx.WriteError(c, media.AsAppError(serr))
+		return
+	}
+	defer file.Reader.Close()
+	c.Header("Content-Type", file.MIME)
+	c.Header("Content-Disposition", "inline")
+	c.Header("Cache-Control", "private, max-age=3600")
+	c.Header("X-Content-Type-Options", "nosniff")
+	http.ServeContent(c.Writer, c.Request, "", file.UpdatedAt, file.Reader)
+}
+
+func (h *Handler) UploadImage(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.WriteError(c, httpx.NotFound("product not found"))
+		return
+	}
+	header, err := c.FormFile("image")
+	if err != nil {
+		if errors.Is(err, http.ErrMissingFile) || errors.Is(err, http.ErrNotMultipart) {
+			httpx.WriteError(c, httpx.FieldError("image", "is required"))
+			return
+		}
+		httpx.WriteError(c, media.AsAppError(err))
+		return
+	}
+	file, err := header.Open()
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	defer file.Close()
+	dto, serr := h.svc.SetImage(c.Request.Context(), id, file, actor(c))
+	if serr != nil {
+		httpx.WriteError(c, media.AsAppError(serr))
+		return
+	}
+	httpx.OK(c, dto)
+}
+
+func (h *Handler) DeleteImage(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.WriteError(c, httpx.NotFound("product not found"))
+		return
+	}
+	if err := h.svc.DeleteImage(c.Request.Context(), id, actor(c)); err != nil {
+		httpx.WriteError(c, media.AsAppError(err))
+		return
+	}
+	httpx.NoContent(c)
+}
+
 func (h *Handler) History(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -114,4 +178,8 @@ func (h *Handler) History(c *gin.Context) {
 		return
 	}
 	httpx.List(c, items, httpx.NewMeta(p, total))
+}
+
+func actor(c *gin.Context) audit.Actor {
+	return audit.ActorFromIdentity(httpx.MustIdentity(c), httpx.RequestID(c))
 }

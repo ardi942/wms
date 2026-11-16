@@ -23,6 +23,8 @@ type Config struct {
 	MigrationsPath          string
 	SeedDemo                bool
 	MaxRequestBodyBytes     int64
+	UploadDir               string
+	ImageMaxBytes           int64
 	TrustedProxies          []string
 	RateLimitEnabled        bool
 	RateLimitLoginPerMinute int
@@ -46,6 +48,8 @@ func Load() (*Config, error) {
 		CORSOrigins:             splitCSV(env("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")),
 		SeedDemo:                envBool("SEED_DEMO", true),
 		MaxRequestBodyBytes:     envInt64("MAX_REQUEST_BODY_BYTES", 1<<20),
+		UploadDir:               env("UPLOAD_DIR", "./uploads"),
+		ImageMaxBytes:           envInt64("IMAGE_MAX_BYTES", 2<<20),
 		TrustedProxies:          splitCSV(env("TRUSTED_PROXIES", "")),
 		RateLimitEnabled:        envBool("RATE_LIMIT_ENABLED", true),
 		RateLimitLoginPerMinute: envInt("RATE_LIMIT_LOGIN_PER_MINUTE", 30),
@@ -63,6 +67,12 @@ func Load() (*Config, error) {
 	}
 	if c.MaxRequestBodyBytes < 1024 || c.MaxRequestBodyBytes > 16<<20 {
 		return nil, fmt.Errorf("MAX_REQUEST_BODY_BYTES must be between 1024 and 16777216")
+	}
+	if strings.TrimSpace(c.UploadDir) == "" {
+		return nil, fmt.Errorf("UPLOAD_DIR is required")
+	}
+	if c.ImageMaxBytes < 64<<10 || c.ImageMaxBytes > 8<<20 {
+		return nil, fmt.Errorf("IMAGE_MAX_BYTES must be between 65536 and 8388608")
 	}
 	if c.RateLimitLoginPerMinute < 1 || c.RateLimitAPIPerMinute < 1 || c.RateLimitMutationPerMin < 1 {
 		return nil, fmt.Errorf("rate limit values must be positive")

@@ -108,6 +108,8 @@ func New(t *testing.T, opts ...Option) *Env {
 		OutboxPollInterval:      time.Second,
 		MigrationsPath:          migrationsPath(),
 		MaxRequestBodyBytes:     1 << 20,
+		UploadDir:               t.TempDir(),
+		ImageMaxBytes:           2 << 20,
 		RateLimitEnabled:        false,
 		RateLimitLoginPerMinute: 30,
 		RateLimitAPIPerMinute:   600,
@@ -118,13 +120,16 @@ func New(t *testing.T, opts ...Option) *Env {
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	warehouseID := seed(t, db)
-	application := app.New(app.Deps{
+	application, err := app.New(app.Deps{
 		DB:          db,
 		Config:      cfg,
 		Logger:      log,
 		WarehouseID: warehouseID,
 		Limiter:     o.limiter,
 	})
+	if err != nil {
+		t.Fatalf("start application: %v", err)
+	}
 	t.Cleanup(func() {
 		_ = application.Close()
 		sqlDB, err := db.DB()

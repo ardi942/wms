@@ -6,8 +6,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { referenceApi, userApi } from '../../api/endpoints'
 import { ApiError } from '../../api/client'
+import { useAuth } from '../../auth/AuthProvider'
 import { Button, Card, CardHeader, Field, Input, Select } from '../../components/ui'
 import { ErrorState, Loading, PageHeader } from '../../components/common'
+import { ImagePicker, type ImageSelection } from '../../components/common/ImageUpload'
 import { useT } from '../../i18n/I18nProvider'
 import { AuditEventTable } from '../audit/AuditEventTable'
 import { UserStatusDialog } from './UserStatusDialog'
@@ -17,12 +19,14 @@ import type { UpdateUserInput } from '../../types'
 export function UserFormPage() {
   const { id } = useParams()
   const { t } = useT()
+  const { user: currentUser, refreshUser } = useAuth()
   const editing = Boolean(id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [submitting, setSubmitting] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [statusSaving, setStatusSaving] = useState(false)
+  const [imageSelection, setImageSelection] = useState<ImageSelection>({ file: null, remove: false })
   const user = useQuery({ queryKey: ['user', id], queryFn: () => userApi.get(id!), enabled: editing })
   const history = useQuery({
     queryKey: ['user-history', id],
@@ -67,6 +71,7 @@ export function UserFormPage() {
     }
     setSubmitting(true)
     try {
+      let targetId = id
       if (editing) {
         const payload: UpdateUserInput = {
           full_name: values.full_name.trim(),
@@ -75,20 +80,41 @@ export function UserFormPage() {
         }
         await userApi.update(id!, payload)
       } else {
-        await userApi.create({
+        const created = await userApi.create({
           email: values.email.trim(),
           full_name: values.full_name.trim(),
           password: values.password ?? '',
           role: values.role,
           ...(values.role === 'DEPARTMENT_USER' ? { department_id: values.department_id } : {}),
         })
+        targetId = created.data.id
+      }
+
+      let imageFailed = false
+      if (targetId && (imageSelection.file || imageSelection.remove)) {
+        try {
+          if (imageSelection.file) await userApi.uploadImage(targetId, imageSelection.file)
+          else await userApi.deleteImage(targetId)
+        } catch {
+          imageFailed = true
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['users'] })
+      if (targetId) {
+        await queryClient.invalidateQueries({ queryKey: ['user', targetId] })
+        await queryClient.invalidateQueries({ queryKey: ['user-history', targetId] })
+      }
+      if (targetId && targetId === currentUser?.id) {
+        await refreshUser().catch(() => undefined)
+      }
+
+      if (imageFailed) {
+        toast.error(t('image.userSavedImageFailed'))
+        navigate(`/users/${targetId}/edit`)
+        return
       }
       toast.success(editing ? t('toast.userUpdated') : t('toast.userCreated'))
-      await queryClient.invalidateQueries({ queryKey: ['users'] })
-      if (editing) {
-        await queryClient.invalidateQueries({ queryKey: ['user', id] })
-        await queryClient.invalidateQueries({ queryKey: ['user-history', id] })
-      }
       navigate('/users')
     } catch (err) {
       const message = err instanceof ApiError ? err.message : t('toast.saveFailed')
@@ -145,6 +171,18 @@ export function UserFormPage() {
       <div className="max-w-xl">
         <Card className="p-6">
           <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-slate-700">{t('image.userAvatar')}</p>
+              <ImagePicker
+                value={imageSelection}
+                onChange={setImageSelection}
+                currentUrl={user.data?.data.image_url}
+                currentVersion={user.data?.data.image_updated_at}
+                disabled={submitting}
+                shape="avatar"
+                alt={t('image.userAvatar')}
+              />
+            </div>
             <Field
               label={t('fields.email')}
               hint={t('fields.emailHint')}

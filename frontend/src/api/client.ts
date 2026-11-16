@@ -49,6 +49,7 @@ export function toQuery(params?: Record<string, unknown>): string {
 interface RequestOptions {
   method?: string
   body?: unknown
+  formData?: FormData
   idempotencyKey?: string
   signal?: AbortSignal
 }
@@ -56,16 +57,16 @@ interface RequestOptions {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET'
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (options.body !== undefined && options.formData === undefined) headers['Content-Type'] = 'application/json'
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
-  if (method === 'POST' || method === 'PATCH') {
+  if ((method === 'POST' || method === 'PATCH') && options.formData === undefined) {
     headers['Idempotency-Key'] = options.idempotencyKey ?? createIdempotencyKey()
   }
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body: options.formData ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
     signal: options.signal,
   })
   if (res.status === 204) return undefined as T
@@ -100,6 +101,39 @@ export const api = {
     request<T>(path, { method: 'POST', body, idempotencyKey }),
   patch: <T>(path: string, body?: unknown, idempotencyKey?: string) =>
     request<T>(path, { method: 'PATCH', body, idempotencyKey }),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  upload: <T>(path: string, formData: FormData) => request<T>(path, { method: 'POST', formData }),
+}
+
+function handleUnauthorized(res: Response) {
+  if (res.status === 401) {
+    setToken(null)
+    window.dispatchEvent(new CustomEvent('wms:unauthorized'))
+  }
+}
+
+export async function fetchBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const token = getToken()
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    signal,
+  })
+  if (!res.ok) {
+    handleUnauthorized(res)
+    let message = `Request failed with status ${res.status}`
+    let code = 'REQUEST_FAILED'
+    let details: Record<string, unknown> | null = null
+    try {
+      const payload = await res.json()
+      message = payload?.error?.message ?? message
+      code = payload?.error?.code ?? code
+      details = payload?.error?.details ?? null
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(res.status, code, message, details)
+  }
+  return res.blob()
 }
 
 export async function downloadCsv(path: string, params?: Record<string, unknown>): Promise<Blob> {

@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, Bell, Boxes, ClipboardList, History, LayoutDashboard, LogOut, Menu, MoreHorizontal, Package, RotateCcw, ScrollText, SlidersHorizontal, Truck, Users, X } from 'lucide-react'
 import { useAuth } from '../../auth/AuthProvider'
+import { Avatar } from '../common/ImageUpload'
 import { useT } from '../../i18n/I18nProvider'
 import { notificationApi } from '../../api/endpoints'
 import { navItems } from '../../lib/constants'
@@ -126,6 +127,12 @@ export function AppShell() {
               {Boolean(unread) && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />}
             </button>
             <LanguageSwitcher className="hidden md:block" />
+            <Avatar
+              src={user.image_url}
+              version={user.image_updated_at}
+              name={user.full_name}
+              className="hidden md:inline-grid"
+            />
             <div className="hidden text-right md:block">
               <p className="text-sm font-medium text-slate-800">{user.full_name}</p>
               <p className="text-xs text-slate-500">
@@ -190,12 +197,15 @@ export function AppShell() {
             </nav>
             <div className="space-y-3 border-t border-slate-200 p-3">
               <LanguageSwitcher className="w-full" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-800">{user.full_name}</p>
-                <p className="truncate text-xs text-slate-500">
-                  {t(`role.${user.role}`)}
-                  {user.department ? ` · ${user.department.name}` : ''}
-                </p>
+              <div className="flex items-center gap-3">
+                <Avatar src={user.image_url} version={user.image_updated_at} name={user.full_name} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-800">{user.full_name}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {t(`role.${user.role}`)}
+                    {user.department ? ` · ${user.department.name}` : ''}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"

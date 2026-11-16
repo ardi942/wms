@@ -18,6 +18,7 @@ import (
 	"wms/backend/internal/httpx"
 	"wms/backend/internal/idempotency"
 	"wms/backend/internal/inventory"
+	"wms/backend/internal/media"
 	"wms/backend/internal/middleware"
 	"wms/backend/internal/notification"
 	"wms/backend/internal/product"
@@ -36,6 +37,7 @@ type Deps struct {
 	Logger      *slog.Logger
 	WarehouseID uuid.UUID
 	Limiter     ratelimit.Limiter
+	Media       *media.Service
 }
 
 type App struct {
@@ -44,11 +46,19 @@ type App struct {
 	Limiter     ratelimit.Limiter
 }
 
-func New(deps Deps) *App {
+func New(deps Deps) (*App, error) {
 	cfg := deps.Config
 	log := deps.Logger
 	if log == nil {
 		log = slog.Default()
+	}
+	mediaSvc := deps.Media
+	if mediaSvc == nil {
+		store, err := media.NewLocalStore(cfg.UploadDir)
+		if err != nil {
+			return nil, err
+		}
+		mediaSvc = media.NewService(store, cfg.ImageMaxBytes)
 	}
 	limiter := deps.Limiter
 	if limiter == nil && cfg.RateLimitEnabled {
@@ -67,7 +77,7 @@ func New(deps Deps) *App {
 	auditRepo := audit.NewRepository(deps.DB)
 	auditSvc := audit.NewService(auditRepo)
 	auditHandler := audit.NewHandler(auditSvc)
-	userSvc := user.NewService(deps.DB, userRepo, auditSvc)
+	userSvc := user.NewService(deps.DB, userRepo, auditSvc, mediaSvc)
 	userHandler := user.NewHandler(userSvc)
 	deptRepo := department.NewRepository(deps.DB)
 	deptHandler := department.NewHandler(deptRepo)
@@ -76,7 +86,7 @@ func New(deps Deps) *App {
 	unitRepo := unit.NewRepository(deps.DB)
 	unitHandler := unit.NewHandler(unitRepo)
 	productRepo := product.NewRepository(deps.DB)
-	productSvc := product.NewService(deps.DB, productRepo, deps.WarehouseID, auditSvc)
+	productSvc := product.NewService(deps.DB, productRepo, deps.WarehouseID, auditSvc, mediaSvc)
 	productSvc.SetCache(deps.Cache)
 	productHandler := product.NewHandler(productSvc)
 	invRepo := inventory.NewRepository(deps.DB, deps.WarehouseID)
@@ -110,7 +120,7 @@ func New(deps Deps) *App {
 	router.Use(
 		middleware.RequestID(),
 		middleware.Recovery(log),
-		middleware.BodyLimit(cfg.MaxRequestBodyBytes),
+		middleware.BodyLimitResolver(cfg.MaxRequestBodyBytes, cfg.ImageMaxBytes+(512<<10)),
 		middleware.SecurityHeaders(),
 		middleware.Logging(log),
 		middleware.CORS(cfg.CORSOrigins),
@@ -190,6 +200,8 @@ func New(deps Deps) *App {
 	authed.GET("/units", unitHandler.List)
 	authed.GET("/products", productHandler.List)
 	authed.GET("/products/:id", productHandler.Get)
+	authed.GET("/products/:id/image", productHandler.GetImage)
+	authed.GET("/users/:id/image", userHandler.GetImage)
 	authed.GET("/inventory", invHandler.List)
 	authed.GET("/inventory/movements", invHandler.Movements)
 	authed.GET("/inventory/:productId", invHandler.Get)
@@ -213,6 +225,8 @@ func New(deps Deps) *App {
 	admin.POST("/users", userHandler.Create)
 	admin.GET("/users/:id", userHandler.Get)
 	admin.PATCH("/users/:id", userHandler.Update)
+	admin.POST("/users/:id/image", userHandler.UploadImage)
+	admin.DELETE("/users/:id/image", userHandler.DeleteImage)
 	admin.POST("/users/:id/activate", userHandler.Activate)
 	admin.POST("/users/:id/deactivate", userHandler.Deactivate)
 	admin.POST("/categories", categoryHandler.Create)
@@ -220,6 +234,8 @@ func New(deps Deps) *App {
 	admin.POST("/units", unitHandler.Create)
 	admin.PATCH("/units/:id", unitHandler.Update)
 	admin.POST("/products", productHandler.Create)
+	admin.POST("/products/:id/image", productHandler.UploadImage)
+	admin.DELETE("/products/:id/image", productHandler.DeleteImage)
 	admin.POST("/inventory/receipts",
 		middleware.BodyHashAndIdempotencyKey(), middleware.Idempotency(idemStore, "inventory.receipt.create"), invHandler.Receive)
 	admin.POST("/inventory/adjustments",
@@ -263,7 +279,7 @@ func New(deps Deps) *App {
 		httpx.WriteError(c, httpx.Err(http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed"))
 	})
 
-	return &App{Router: router, Idempotency: idemStore, Limiter: limiter}
+	return &App{Router: router, Idempotency: idemStore, Limiter: limiter}, nil
 }
 
 func (a *App) Close() error {

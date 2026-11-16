@@ -2,6 +2,21 @@ export type Lang = 'en' | 'id' | 'zh'
 
 export const dictionaries = {
   en: {
+    image: {
+      choose: 'Choose image',
+      replace: 'Replace image',
+      remove: 'Remove image',
+      undoRemove: 'Undo removal',
+      hint: 'JPEG or PNG, up to 2 MiB.',
+      invalidType: 'Choose a JPEG or PNG image.',
+      tooLarge: 'Image must be 2 MiB or smaller.',
+      uploadFailed: 'Image could not be uploaded.',
+      removeFailed: 'Image could not be removed.',
+      productImage: 'Product image',
+      userAvatar: 'Profile photo',
+      productSavedImageFailed: 'Product saved, but the image operation failed. Retry from the edit page.',
+      userSavedImageFailed: 'User saved, but the image operation failed. Retry from the edit page.',
+    },
     nav: {
       dashboard: 'Dashboard',
       products: 'Products',
@@ -526,6 +541,7 @@ export const dictionaries = {
         unit_id: 'Unit',
         min_stock: 'Low-stock level',
         unit_cost: 'Unit cost',
+        image: 'Image',
       },
     },
     errors: {
@@ -538,6 +554,21 @@ export const dictionaries = {
 
 
   id: {
+    image: {
+      choose: 'Pilih gambar',
+      replace: 'Ganti gambar',
+      remove: 'Hapus gambar',
+      undoRemove: 'Batalkan penghapusan',
+      hint: 'JPEG atau PNG, maksimal 2 MiB.',
+      invalidType: 'Pilih gambar JPEG atau PNG.',
+      tooLarge: 'Ukuran gambar harus 2 MiB atau kurang.',
+      uploadFailed: 'Gambar gagal diunggah.',
+      removeFailed: 'Gambar gagal dihapus.',
+      productImage: 'Gambar produk',
+      userAvatar: 'Foto profil',
+      productSavedImageFailed: 'Produk tersimpan, tetapi operasi gambar gagal. Coba lagi dari halaman edit.',
+      userSavedImageFailed: 'Pengguna tersimpan, tetapi operasi gambar gagal. Coba lagi dari halaman edit.',
+    },
     nav: {
       dashboard: 'Dasbor',
       products: 'Produk',
@@ -1062,6 +1093,7 @@ export const dictionaries = {
         unit_id: 'Satuan',
         min_stock: 'Batas stok minimum',
         unit_cost: 'Biaya satuan',
+        image: 'Gambar',
       },
     },
     errors: {
@@ -1073,6 +1105,21 @@ export const dictionaries = {
   },
 
   zh: {
+    image: {
+      choose: '选择图片',
+      replace: '更换图片',
+      remove: '删除图片',
+      undoRemove: '撤销删除',
+      hint: 'JPEG 或 PNG，最大 2 MiB。',
+      invalidType: '请选择 JPEG 或 PNG 图片。',
+      tooLarge: '图片大小不得超过 2 MiB。',
+      uploadFailed: '图片上传失败。',
+      removeFailed: '图片删除失败。',
+      productImage: '商品图片',
+      userAvatar: '个人头像',
+      productSavedImageFailed: '商品已保存，但图片操作失败。请在编辑页面重试。',
+      userSavedImageFailed: '用户已保存，但图片操作失败。请在编辑页面重试。',
+    },
     nav: {
       dashboard: '仪表盘',
       products: '产品',
@@ -1597,6 +1644,7 @@ export const dictionaries = {
         unit_id: '单位',
         min_stock: '低库存阈值',
         unit_cost: '单位成本',
+        image: '图片',
       },
     },
     errors: {

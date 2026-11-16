@@ -1,4 +1,4 @@
-import { api, toQuery } from './client'
+import { api, fetchBlob, toQuery } from './client'
 import type {
   AuditEvent,
   Category,
@@ -32,6 +32,12 @@ interface Envelope<T> {
   meta?: Meta
 }
 
+function imageForm(file: File): FormData {
+  const form = new FormData()
+  form.append('image', file)
+  return form
+}
+
 async function list<T>(path: string, params?: Record<string, unknown>): Promise<ListResult<T>> {
   const res = await api.get<Envelope<T[]>>(`${path}${toQuery(params)}`)
   return {
@@ -56,6 +62,11 @@ export const productApi = {
   get: (id: string) => api.get<Envelope<Product>>(`/products/${id}`),
   create: (body: unknown) => api.post<Envelope<Product>>('/products', body),
   update: (id: string, body: unknown) => api.patch<Envelope<Product>>(`/products/${id}`, body),
+  image: (id: string, version?: string | null) =>
+    fetchBlob(`/products/${id}/image${version ? `?v=${encodeURIComponent(version)}` : ''}`),
+  uploadImage: (id: string, file: File) =>
+    api.upload<Envelope<Product>>(`/products/${id}/image`, imageForm(file)),
+  deleteImage: (id: string) => api.delete<void>(`/products/${id}/image`),
   history: (id: string, params?: Record<string, unknown>) => list<AuditEvent>(`/products/${id}/history`, params),
 }
 
@@ -107,6 +118,11 @@ export const userApi = {
   update: (id: string, body: UpdateUserInput) => api.patch<Envelope<User>>(`/users/${id}`, body),
   activate: (id: string, reason: string) => api.post<Envelope<User>>(`/users/${id}/activate`, { reason }),
   deactivate: (id: string, reason: string) => api.post<Envelope<User>>(`/users/${id}/deactivate`, { reason }),
+  image: (id: string, version?: string | null) =>
+    fetchBlob(`/users/${id}/image${version ? `?v=${encodeURIComponent(version)}` : ''}`),
+  uploadImage: (id: string, file: File) =>
+    api.upload<Envelope<User>>(`/users/${id}/image`, imageForm(file)),
+  deleteImage: (id: string) => api.delete<void>(`/users/${id}/image`),
   history: (id: string, params?: Record<string, unknown>) => list<AuditEvent>(`/users/${id}/history`, params),
 }
 

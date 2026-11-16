@@ -3,6 +3,8 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/mail"
 	"strings"
 	"time"
@@ -11,16 +13,18 @@ import (
 	"gorm.io/gorm"
 	"wms/backend/internal/audit"
 	"wms/backend/internal/httpx"
+	"wms/backend/internal/media"
 )
 
 type Service struct {
 	db    *gorm.DB
 	repo  *Repository
 	audit *audit.Service
+	media *media.Service
 }
 
-func NewService(db *gorm.DB, repo *Repository, auditSvc *audit.Service) *Service {
-	return &Service{db: db, repo: repo, audit: auditSvc}
+func NewService(db *gorm.DB, repo *Repository, auditSvc *audit.Service, mediaSvc *media.Service) *Service {
+	return &Service{db: db, repo: repo, audit: auditSvc, media: mediaSvc}
 }
 
 type ListFilter struct {
@@ -317,6 +321,139 @@ func (s *Service) setActive(ctx context.Context, id uuid.UUID, active bool, reas
 	}
 	dto := s.toDTO(ctx, updated)
 	return &dto, changed, nil
+}
+
+type ImageFile struct {
+	Reader    io.ReadSeekCloser
+	MIME      string
+	UpdatedAt time.Time
+}
+
+func (s *Service) SetImage(ctx context.Context, id uuid.UUID, r io.Reader, actor audit.Actor) (*DTO, error) {
+	if s.media == nil {
+		return nil, fmt.Errorf("media service is not configured")
+	}
+	img, err := s.media.Validate(r)
+	if err != nil {
+		return nil, media.AsAppError(err)
+	}
+	key, err := media.NewKey("users", img.Extension)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.media.Put(ctx, key, img); err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	var previousKey *string
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		existing, err := txRepo.GetByIDForUpdate(ctx, id)
+		if err != nil {
+			return mapUserError(err)
+		}
+		previousKey = existing.ImageKey
+		if err := txRepo.Update(ctx, id, map[string]any{
+			"image_key":        key,
+			"image_mime":       img.MIME,
+			"image_updated_at": now,
+		}); err != nil {
+			return err
+		}
+		return s.audit.Record(ctx, tx, audit.Entry{
+			EntityType:    audit.EntityUser,
+			EntityID:      id,
+			Action:        audit.ActionUserProfileUpdate,
+			EntityLabel:   existing.FullName,
+			Actor:         actor,
+			ChangedFields: []string{"image"},
+			Before:        map[string]any{"image": timestampValue(existing.ImageUpdatedAt)},
+			After:         map[string]any{"image": timestampValue(&now)},
+		})
+	})
+	if err != nil {
+		_ = s.media.Delete(ctx, key)
+		return nil, err
+	}
+	if previousKey != nil && *previousKey != "" && *previousKey != key {
+		_ = s.media.Delete(ctx, *previousKey)
+	}
+	return s.Get(ctx, id)
+}
+
+func (s *Service) DeleteImage(ctx context.Context, id uuid.UUID, actor audit.Actor) error {
+	if s.media == nil {
+		return fmt.Errorf("media service is not configured")
+	}
+	var previousKey *string
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		existing, err := txRepo.GetByIDForUpdate(ctx, id)
+		if err != nil {
+			return mapUserError(err)
+		}
+		if existing.ImageKey == nil || *existing.ImageKey == "" {
+			return nil
+		}
+		previousKey = existing.ImageKey
+		if err := txRepo.Update(ctx, id, map[string]any{
+			"image_key":        nil,
+			"image_mime":       nil,
+			"image_updated_at": nil,
+		}); err != nil {
+			return err
+		}
+		return s.audit.Record(ctx, tx, audit.Entry{
+			EntityType:    audit.EntityUser,
+			EntityID:      id,
+			Action:        audit.ActionUserProfileUpdate,
+			EntityLabel:   existing.FullName,
+			Actor:         actor,
+			ChangedFields: []string{"image"},
+			Before:        map[string]any{"image": timestampValue(existing.ImageUpdatedAt)},
+			After:         map[string]any{"image": nil},
+		})
+	})
+	if err != nil {
+		return err
+	}
+	if previousKey != nil && *previousKey != "" {
+		_ = s.media.Delete(ctx, *previousKey)
+	}
+	return nil
+}
+
+func (s *Service) GetImage(ctx context.Context, id uuid.UUID) (*ImageFile, error) {
+	if s.media == nil {
+		return nil, fmt.Errorf("media service is not configured")
+	}
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, mapUserError(err)
+	}
+	if existing.ImageKey == nil || *existing.ImageKey == "" || existing.ImageMIME == nil || *existing.ImageMIME == "" {
+		return nil, httpx.NotFound("image not found")
+	}
+	reader, err := s.media.Open(ctx, *existing.ImageKey)
+	if err != nil {
+		if errors.Is(err, media.ErrNotFound) {
+			return nil, httpx.NotFound("image not found")
+		}
+		return nil, err
+	}
+	updatedAt := time.Time{}
+	if existing.ImageUpdatedAt != nil {
+		updatedAt = *existing.ImageUpdatedAt
+	}
+	return &ImageFile{Reader: reader, MIME: *existing.ImageMIME, UpdatedAt: updatedAt}, nil
+}
+
+func timestampValue(value *time.Time) any {
+	if value == nil {
+		return nil
+	}
+	return value.UTC().Format(time.RFC3339Nano)
 }
 
 func (s *Service) History(ctx context.Context, id uuid.UUID, page, pageSize int) ([]audit.DTO, int64, error) {

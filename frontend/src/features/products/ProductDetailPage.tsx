@@ -7,6 +7,7 @@ import { inventoryApi, productApi } from '../../api/endpoints'
 import { useAuth } from '../../auth/AuthProvider'
 import { Badge, Button, Card, CardHeader } from '../../components/ui'
 import { ConfirmDialog, DataTable, ErrorState, Loading, PageHeader, type Column } from '../../components/common'
+import { AuthenticatedImage } from '../../components/common/ImageUpload'
 import { useT } from '../../i18n/I18nProvider'
 import { formatCurrency, formatDateTime, formatQty } from '../../lib/format'
 import { AuditEventTable } from '../audit/AuditEventTable'
@@ -75,6 +76,16 @@ export function ProductDetailPage() {
       />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
+          {p.image_url && (
+            <div className="mb-5 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+              <AuthenticatedImage
+                src={p.image_url}
+                version={p.image_updated_at}
+                alt={t('image.productImage')}
+                className="max-h-80 w-full object-contain"
+              />
+            </div>
+          )}
           <dl className="grid gap-4 sm:grid-cols-2">
             <div><dt className="text-xs uppercase text-slate-500">{t('details.currentStock')}</dt><dd className="text-2xl font-semibold">{formatQty(p.current_stock)} {p.unit.code}</dd></div>
             <div><dt className="text-xs uppercase text-slate-500">{t('details.minimumStock')}</dt><dd className="text-lg">{formatQty(p.min_stock)}</dd></div>

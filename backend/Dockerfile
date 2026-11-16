@@ -14,6 +14,7 @@ RUN addgroup -S -g 10001 app && adduser -S -D -H -u 10001 -G app app \
 WORKDIR /app
 COPY --from=build /out/ /app/
 COPY migrations /app/migrations
+RUN mkdir -p /app/uploads && chown 10001:10001 /app/uploads
 USER 10001:10001
 EXPOSE 8080
 CMD ["/app/api"]

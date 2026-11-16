@@ -12,6 +12,8 @@ const user: User = {
   role: 'DEPARTMENT_USER',
   department: null,
   is_active: true,
+  image_url: null,
+  image_updated_at: null,
   created_at: '2026-11-15T09:00:00Z',
   updated_at: '2026-11-15T09:00:00Z',
 }
@@ -21,7 +23,7 @@ describe('UserStatusDialog', () => {
     const onConfirm = vi.fn()
     render(
       <I18nProvider>
-        <UserStatusDialog open user={user} onCancel={() => {}} onConfirm={onConfirm} />
+        <UserStatusDialog open user={user} onCancel={() => { }} onConfirm={onConfirm} />
       </I18nProvider>,
     )
     const actor = userEvent.setup()
@@ -34,7 +36,7 @@ describe('UserStatusDialog', () => {
     const onConfirm = vi.fn()
     render(
       <I18nProvider>
-        <UserStatusDialog open user={user} onCancel={() => {}} onConfirm={onConfirm} />
+        <UserStatusDialog open user={user} onCancel={() => { }} onConfirm={onConfirm} />
       </I18nProvider>,
     )
     const actor = userEvent.setup()

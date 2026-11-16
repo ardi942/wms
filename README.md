@@ -87,6 +87,8 @@ See `.env.example` for all variables. Important ones:
 - `RABBITMQ_URL` — outbox publishing and notification worker.
 - `SEED_DEMO` — set `false` in production to skip demo data.
 - `CORS_ORIGINS` — comma-separated allowed origins for local development.
+- `UPLOAD_DIR` — local directory for product and user images. Compose defaults to the `uploads` volume at `/app/uploads`; local development defaults to `./uploads`.
+- `IMAGE_MAX_BYTES` — maximum image size in bytes (64 KiB–8 MiB, default `2097152` = 2 MiB).
 - `WMS_FRONTEND_PORT` / `WMS_API_PORT` — host ports published by Compose. They default to `3000` and `8080`; change them when those ports are occupied. Container-internal ports stay fixed (`frontend` 8080, `backend` 8080).
 
 ## Architecture
@@ -107,6 +109,7 @@ frontend (React SPA) ──/api──> backend (Gin) ──> PostgreSQL
 - **User management.** Warehouse Admins can list and filter users, create department users, supervisors, or warehouse admins, edit profiles/passwords, activate/deactivate accounts, and view account history. Roles are immutable after creation. Status changes are serialized with an advisory lock, and the last active warehouse admin cannot be deactivated.
 - **Live polling.** Monitoring and request/return lists refresh every 15 seconds while visible; notifications and the unread badge refresh every 30 seconds. Lists keep the previous page visible while refetching.
 - **RBAC** is authoritative on the backend; the UI hides actions by role but is never trusted.
+- **Images are optional** for products and users. JPEG/PNG files up to 2 MiB and 4096 px per side (16 MP total) are stored on the local filesystem behind a storage-neutral `image_key`; delivery is JWT-protected and streamed with range support. The storage interface leaves room for a future S3-compatible driver.
 
 ## Project layout
 
@@ -114,8 +117,9 @@ frontend (React SPA) ──/api──> backend (Gin) ──> PostgreSQL
 backend/
   cmd/{api,worker,seed,migrate}
   internal/{auth,user,department,category,unit,product,inventory,stockrequest,stockreturn,report,notification,audit}
-  internal/{cache,messaging,worker,idempotency,middleware,httpx,database,config}
-  migrations/0001..0009_*.{up,down}.sql
+  internal/{cache,messaging,worker,idempotency,middleware,httpx,database,config,media}
+  migrations/0001..0010_*.{up,down}.sql
+  uploads/                  # local image storage (git-ignored)
 frontend/
   src/{api,auth,components,features,lib,types,test}
   e2e/
@@ -178,7 +182,20 @@ All responses use `{ "data": ..., "meta": ... }`; errors use `{ "error": { "code
 - `/api/v1/audit` — read-only audit history for Warehouse Admin and Supervisor
 - `/api/v1/notifications`
 
-Mutating document endpoints require `Idempotency-Key` (8–128 characters). The frontend supplies one automatically. User activation/deactivation requires a trimmed reason of 5–500 characters; `PATCH /users/:id` rejects `is_active`.
+### Product and user images
+
+| Method | Path | Access |
+|---|---|---|
+| `GET` | `/api/v1/products/:id/image` | Any authenticated role; Department Users cannot see inactive products |
+| `POST` | `/api/v1/products/:id/image` | Warehouse Admin only |
+| `DELETE` | `/api/v1/products/:id/image` | Warehouse Admin only |
+| `GET` | `/api/v1/users/:id/image` | Self or Warehouse Admin |
+| `POST` | `/api/v1/users/:id/image` | Warehouse Admin only |
+| `DELETE` | `/api/v1/users/:id/image` | Warehouse Admin only |
+
+Uploads use `multipart/form-data` with the field name `image`, accept JPEG/PNG only, and return the updated product/user DTO. Deletes return `204`, including repeated deletes. Image reads are authenticated, streamed from `UPLOAD_DIR`, and returned with `Cache-Control: private, max-age=3600`; invalid formats return `422`, oversized bodies or files return `413`, and missing entities return `404`. Image changes reuse the `PRODUCT_UPDATED` / `USER_PROFILE_UPDATED` audit actions with the `image` field.
+
+Mutating document endpoints require `Idempotency-Key` (8–128 characters). The frontend supplies one automatically. Image uploads do not use idempotency. User activation/deactivation requires a trimmed reason of 5–500 characters; `PATCH /users/:id` rejects `is_active`.
 
 ## Operations
 
@@ -191,6 +208,8 @@ make reset                   # down -v + up --build
 ```
 
 If the worker cannot reach RabbitMQ it retries for up to 60 seconds at startup. Outbox events remain `PENDING` while the broker is down and are published after recovery.
+
+Images live in the Compose `uploads` volume. Back up PostgreSQL and the `uploads` volume together; restoring one without the other can leave image metadata pointing at missing files (or orphan files without metadata).
 
 ## Troubleshooting login and ports
 

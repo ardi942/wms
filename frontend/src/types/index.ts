@@ -25,6 +25,8 @@ export interface User {
   role: Role
   department: DepartmentRef | null
   is_active: boolean
+  image_url: string | null
+  image_updated_at: string | null
   created_at: string
   updated_at: string
 }
@@ -59,7 +61,7 @@ export interface Unit {
   name: string
 }
 
-export interface Department extends DepartmentRef {}
+export interface Department extends DepartmentRef { }
 
 export interface Product {
   id: string
@@ -73,6 +75,8 @@ export interface Product {
   is_active: boolean
   current_stock: number
   is_low_stock: boolean
+  image_url: string | null
+  image_updated_at: string | null
   created_at: string
   updated_at: string
 }

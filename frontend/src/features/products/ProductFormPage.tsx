@@ -10,6 +10,7 @@ import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthProvider'
 import { Button, Card, Field, Input, Select, Textarea } from '../../components/ui'
 import { ErrorState, Loading, PageHeader } from '../../components/common'
+import { AuthenticatedImage, ImagePicker, type ImageSelection } from '../../components/common/ImageUpload'
 import { useT } from '../../i18n/I18nProvider'
 import { formatCurrency } from '../../lib/format'
 
@@ -55,11 +56,13 @@ export function ProductFormPage() {
   const { user } = useAuth()
   const { t } = useT()
   const isSupervisor = user?.role === 'SUPERVISOR'
+  const isAdmin = user?.role === 'WAREHOUSE_ADMIN'
   const editing = Boolean(id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [submitting, setSubmitting] = useState(false)
   const [generatingSku, setGeneratingSku] = useState(false)
+  const [imageSelection, setImageSelection] = useState<ImageSelection>({ file: null, remove: false })
   const product = useQuery({ queryKey: ['product', id], queryFn: () => productApi.get(id!), enabled: editing })
   const references = useQuery({
     queryKey: ['references'],
@@ -128,14 +131,36 @@ export function ProductFormPage() {
     }
     if (isSupervisor) body.unit_cost = values.unit_cost ? Number(values.unit_cost) : null
     try {
-      if (editing) await productApi.update(id!, body)
-      else await productApi.create(body)
-      toast.success(editing ? t('toast.productUpdated') : t('toast.productCreated'))
+      let targetId = id
+      if (editing) {
+        await productApi.update(id!, body)
+      } else {
+        const created = await productApi.create(body)
+        targetId = created.data.id
+      }
+
+      let imageFailed = false
+      if (isAdmin && targetId && (imageSelection.file || imageSelection.remove)) {
+        try {
+          if (imageSelection.file) await productApi.uploadImage(targetId, imageSelection.file)
+          else await productApi.deleteImage(targetId)
+        } catch {
+          imageFailed = true
+        }
+      }
+
       await queryClient.invalidateQueries({ queryKey: ['products'] })
-      await queryClient.invalidateQueries({ queryKey: ['product', id] })
+      await queryClient.invalidateQueries({ queryKey: ['product', targetId] })
       await queryClient.invalidateQueries({ queryKey: ['inventory'] })
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      navigate(editing ? `/products/${id}` : '/products')
+
+      if (imageFailed) {
+        toast.error(t('image.productSavedImageFailed'))
+        navigate(`/products/${targetId}/edit`)
+        return
+      }
+      toast.success(editing ? t('toast.productUpdated') : t('toast.productCreated'))
+      navigate(editing ? `/products/${targetId}` : '/products')
     } catch (err) {
       const message = err instanceof ApiError ? err.message : t('toast.saveFailed')
       if (err instanceof ApiError && err.details) {
@@ -250,6 +275,33 @@ export function ProductFormPage() {
           >
             <Textarea id="description" {...register('description')} />
           </Field>
+          {isAdmin && (
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-slate-700">{t('image.productImage')}</p>
+              <ImagePicker
+                value={imageSelection}
+                onChange={setImageSelection}
+                currentUrl={product.data?.data.image_url}
+                currentVersion={product.data?.data.image_updated_at}
+                disabled={submitting}
+                alt={t('image.productImage')}
+              />
+            </div>
+          )}
+          {!isAdmin && editing && (
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-slate-700">{t('image.productImage')}</p>
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <AuthenticatedImage
+                  src={product.data?.data.image_url}
+                  version={product.data?.data.image_updated_at}
+                  alt={t('image.productImage')}
+                  className="max-h-40 w-full object-contain"
+                  fallback={<span className="grid h-24 place-items-center text-xs text-slate-400">{t('common.notAvailable')}</span>}
+                />
+              </div>
+            </div>
+          )}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
             <Button type="button" variant="outline" onClick={() => navigate(-1)}>{t('common.cancel')}</Button>
             <Button type="submit" loading={submitting}>{editing ? t('actions.saveChanges') : t('actions.createProduct')}</Button>

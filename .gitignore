@@ -7,5 +7,7 @@ frontend/playwright-report/
 *.log
 .DS_Store
 docs
+uploads/
+backend/uploads/
 *.bak-*
 *.tsbuildinfo

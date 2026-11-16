@@ -229,6 +229,17 @@ func TestRouteMatrixComprehensive(t *testing.T) {
 		mk("confirm bad id", "POST", static("/api/v1/stock-returns/nope/confirm"), adminTok, func(*testkit.Env, ids) any { return map[string]any{"items": []any{}} }, hdr(), 404),
 		mk("reject request bad id", "POST", static("/api/v1/stock-requests/nope/reject"), adminTok, func(*testkit.Env, ids) any { return map[string]any{"reason": "reason ok"} }, hdr(), 404),
 		mk("reject return bad id", "POST", static("/api/v1/stock-returns/nope/reject"), adminTok, func(*testkit.Env, ids) any { return map[string]any{"reason": "reason ok"} }, hdr(), 404),
+		// image routes
+		mk("product image get unauth", "GET", withID("/api/v1/products/%s/image", func(x ids) uuid.UUID { return x.productID }), anon, noBody, noHdr, 401),
+		mk("product image get no image", "GET", withID("/api/v1/products/%s/image", func(x ids) uuid.UUID { return x.productID }), deptTok, noBody, noHdr, 404),
+		mk("product image upload forbidden", "POST", withID("/api/v1/products/%s/image", func(x ids) uuid.UUID { return x.productID }), deptTok, noBody, noHdr, 403),
+		mk("product image upload missing file", "POST", withID("/api/v1/products/%s/image", func(x ids) uuid.UUID { return x.productID }), adminTok, noBody, noHdr, 422),
+		mk("product image delete no image", "DELETE", withID("/api/v1/products/%s/image", func(x ids) uuid.UUID { return x.productID }), adminTok, noBody, noHdr, 204),
+		mk("user image get self no image", "GET", withID("/api/v1/users/%s/image", func(x ids) uuid.UUID { return x.deptUserID }), deptTok, noBody, noHdr, 404),
+		mk("user image get other forbidden", "GET", withID("/api/v1/users/%s/image", func(x ids) uuid.UUID { return x.userID }), deptTok, noBody, noHdr, 403),
+		mk("user image upload forbidden", "POST", withID("/api/v1/users/%s/image", func(x ids) uuid.UUID { return x.deptUserID }), deptTok, noBody, noHdr, 403),
+		mk("user image upload missing file", "POST", withID("/api/v1/users/%s/image", func(x ids) uuid.UUID { return x.deptUserID }), adminTok, noBody, noHdr, 422),
+		mk("user image delete no image", "DELETE", withID("/api/v1/users/%s/image", func(x ids) uuid.UUID { return x.deptUserID }), adminTok, noBody, noHdr, 204),
 	}
 
 	for _, c := range cases {

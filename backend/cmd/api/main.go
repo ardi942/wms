@@ -39,13 +39,17 @@ func main() {
 	redisCache := cache.New(cfg.RedisAddr, cfg.RedisPassword, log)
 	defer redisCache.Close()
 
-	application := app.New(app.Deps{
+	application, err := app.New(app.Deps{
 		DB:          db,
 		Cache:       redisCache,
 		Config:      cfg,
 		Logger:      log,
 		WarehouseID: warehouseID,
 	})
+	if err != nil {
+		log.Error("application startup failed", "error", err)
+		os.Exit(1)
+	}
 	defer application.Close()
 	go runIdempotencyCleanup(application.Idempotency, log)
 

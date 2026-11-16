@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"slices"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"wms/backend/internal/audit"
 	"wms/backend/internal/cache"
 	"wms/backend/internal/httpx"
+	"wms/backend/internal/media"
 	"wms/backend/internal/user"
 )
 
@@ -27,10 +29,11 @@ type Service struct {
 	warehouseID uuid.UUID
 	cache       *cache.Cache
 	audit       *audit.Service
+	media       *media.Service
 }
 
-func NewService(db *gorm.DB, repo *Repository, warehouseID uuid.UUID, auditSvc *audit.Service) *Service {
-	return &Service{db: db, repo: repo, warehouseID: warehouseID, audit: auditSvc}
+func NewService(db *gorm.DB, repo *Repository, warehouseID uuid.UUID, auditSvc *audit.Service, mediaSvc *media.Service) *Service {
+	return &Service{db: db, repo: repo, warehouseID: warehouseID, audit: auditSvc, media: mediaSvc}
 }
 
 func (s *Service) SetCache(c *cache.Cache) { s.cache = c }
@@ -342,6 +345,157 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput, role
 		s.cache.InvalidateProduct(ctx)
 	}
 	return s.Get(ctx, id, role)
+}
+
+type ImageFile struct {
+	Reader    io.ReadSeekCloser
+	MIME      string
+	UpdatedAt time.Time
+}
+
+func (s *Service) SetImage(ctx context.Context, id uuid.UUID, r io.Reader, actor audit.Actor) (*DTO, error) {
+	if s.media == nil {
+		return nil, fmt.Errorf("media service is not configured")
+	}
+	img, err := s.media.Validate(r)
+	if err != nil {
+		return nil, media.AsAppError(err)
+	}
+	key, err := media.NewKey("products", img.Extension)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.media.Put(ctx, key, img); err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	var previousKey *string
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		existing, err := txRepo.GetForUpdate(ctx, id)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return httpx.NotFound("product not found")
+			}
+			return err
+		}
+		previousKey = existing.ImageKey
+		if err := txRepo.Update(ctx, id, map[string]any{
+			"image_key":        key,
+			"image_mime":       img.MIME,
+			"image_updated_at": now,
+		}); err != nil {
+			return err
+		}
+		return s.audit.Record(ctx, tx, audit.Entry{
+			EntityType:    audit.EntityProduct,
+			EntityID:      id,
+			Action:        audit.ActionProductUpdated,
+			EntityLabel:   existing.SKU + " — " + existing.Name,
+			Actor:         actor,
+			ChangedFields: []string{"image"},
+			Before:        map[string]any{"image": timestampValue(existing.ImageUpdatedAt)},
+			After:         map[string]any{"image": timestampValue(&now)},
+		})
+	})
+	if err != nil {
+		_ = s.media.Delete(ctx, key)
+		return nil, err
+	}
+	if previousKey != nil && *previousKey != "" && *previousKey != key {
+		_ = s.media.Delete(ctx, *previousKey)
+	}
+	if s.cache != nil {
+		s.cache.InvalidateProduct(ctx)
+	}
+	return s.Get(ctx, id, user.RoleWarehouseAdmin)
+}
+
+func (s *Service) DeleteImage(ctx context.Context, id uuid.UUID, actor audit.Actor) error {
+	if s.media == nil {
+		return fmt.Errorf("media service is not configured")
+	}
+	var previousKey *string
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		existing, err := txRepo.GetForUpdate(ctx, id)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return httpx.NotFound("product not found")
+			}
+			return err
+		}
+		if existing.ImageKey == nil || *existing.ImageKey == "" {
+			return nil
+		}
+		previousKey = existing.ImageKey
+		if err := txRepo.Update(ctx, id, map[string]any{
+			"image_key":        nil,
+			"image_mime":       nil,
+			"image_updated_at": nil,
+		}); err != nil {
+			return err
+		}
+		return s.audit.Record(ctx, tx, audit.Entry{
+			EntityType:    audit.EntityProduct,
+			EntityID:      id,
+			Action:        audit.ActionProductUpdated,
+			EntityLabel:   existing.SKU + " — " + existing.Name,
+			Actor:         actor,
+			ChangedFields: []string{"image"},
+			Before:        map[string]any{"image": timestampValue(existing.ImageUpdatedAt)},
+			After:         map[string]any{"image": nil},
+		})
+	})
+	if err != nil {
+		return err
+	}
+	if previousKey != nil && *previousKey != "" {
+		_ = s.media.Delete(ctx, *previousKey)
+		if s.cache != nil {
+			s.cache.InvalidateProduct(ctx)
+		}
+	}
+	return nil
+}
+
+func (s *Service) GetImage(ctx context.Context, id uuid.UUID, role string) (*ImageFile, error) {
+	if s.media == nil {
+		return nil, fmt.Errorf("media service is not configured")
+	}
+	row, err := s.repo.Get(ctx, id, s.warehouseID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, httpx.NotFound("product not found")
+		}
+		return nil, err
+	}
+	if role == user.RoleDepartmentUser && !row.IsActive {
+		return nil, httpx.NotFound("product not found")
+	}
+	if row.ImageKey == nil || *row.ImageKey == "" || row.ImageMIME == nil || *row.ImageMIME == "" {
+		return nil, httpx.NotFound("image not found")
+	}
+	reader, err := s.media.Open(ctx, *row.ImageKey)
+	if err != nil {
+		if errors.Is(err, media.ErrNotFound) {
+			return nil, httpx.NotFound("image not found")
+		}
+		return nil, err
+	}
+	updatedAt := time.Time{}
+	if row.ImageUpdatedAt != nil {
+		updatedAt = *row.ImageUpdatedAt
+	}
+	return &ImageFile{Reader: reader, MIME: *row.ImageMIME, UpdatedAt: updatedAt}, nil
+}
+
+func timestampValue(value *time.Time) any {
+	if value == nil {
+		return nil
+	}
+	return value.UTC().Format(time.RFC3339Nano)
 }
 
 func (s *Service) History(ctx context.Context, id uuid.UUID, page, pageSize int, role string) ([]audit.DTO, int64, error) {
