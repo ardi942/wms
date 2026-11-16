@@ -2,7 +2,7 @@
 
 A multi-department warehouse management MVP: a React SPA, a Go REST API, PostgreSQL, Redis, RabbitMQ and a Go worker.
 
-Features include product catalogue and inventory, receiving/adjustments, multi-line stock requests with partial fulfilment, guarded stock returns, cross-division status monitoring with live polling, role-specific dashboards, CSV reports, notifications, audited append-only stock movements, and an immutable account/product audit history with required reasons for user activation changes.
+Features include product catalogue and inventory, receiving/adjustments, multi-line stock requests with partial fulfilment, guarded stock returns, cross-division status monitoring with live polling, role-specific dashboards, CSV reports, notifications, warehouse-admin user and role management, audited append-only stock movements, and an immutable account/product audit history with required reasons for user activation changes.
 
 ## Stack
 
@@ -26,7 +26,7 @@ curl -fsS http://localhost:8080/healthz
 curl -fsS http://localhost:8080/readyz
 ```
 
-Open `http://localhost:3000` (or `WMS_FRONTEND_PORT`). Substitute the ports configured in `.env` if you changed them. If login shows a different application or a 404, see [docs/PORT_CONFIGURATION.md](docs/PORT_CONFIGURATION.md).
+Open `http://localhost:3000` (or `WMS_FRONTEND_PORT`). Substitute the ports configured in `.env` if you changed them. If login shows a different application or a 404, see [Troubleshooting login and ports](#troubleshooting-login-and-ports).
 
 Startup order is enforced with healthchecks: `migrate` → `seed` → `backend`/`worker` → `frontend`. The seed is idempotent, so restarts do not duplicate data.
 
@@ -38,6 +38,8 @@ Startup order is enforced with healthchecks: `migrate` → `seed` → `backend`/
 | Warehouse Admin | `warehouse@wms.local` | `Warehouse123!` |
 | Department User (IT) | `staff@wms.local` | `Staff123!` |
 | Department User (FIN) | `staff.fin@wms.local` | `Staff123!` |
+
+The Warehouse Admin account can create additional department users, supervisors, and warehouse admins from the Users page.
 
 ### Services
 
@@ -102,6 +104,8 @@ frontend (React SPA) ──/api──> backend (Gin) ──> PostgreSQL
 - **Returns are capped** by the department's net issued quantity (`issued - returned`) for each product, enforced under advisory locks.
 - **Transactional outbox** guarantees events are published after commit. The relay uses `FOR UPDATE SKIP LOCKED`, retry backoff, and `PENDING`/`PUBLISHED`/`FAILED` states.
 - **Idempotency** is enforced by middleware for mutating document endpoints: the response is stored and replayed for the same `Idempotency-Key`; conflicting payloads return `409`.
+- **User management.** Warehouse Admins can list and filter users, create department users, supervisors, or warehouse admins, edit profiles/passwords, activate/deactivate accounts, and view account history. Roles are immutable after creation. Status changes are serialized with an advisory lock, and the last active warehouse admin cannot be deactivated.
+- **Live polling.** Monitoring and request/return lists refresh every 15 seconds while visible; notifications and the unread badge refresh every 30 seconds. Lists keep the previous page visible while refetching.
 - **RBAC** is authoritative on the backend; the UI hides actions by role but is never trusted.
 
 ## Project layout
@@ -115,14 +119,11 @@ backend/
 frontend/
   src/{api,auth,components,features,lib,types,test}
   e2e/
-docs/
-  IMPLEMENTATION_PLAN.md
-  USER_GUIDE.md
 ```
 
 ## Tests
 
-See `docs/testing.md` for full details (DB-gated integration/concurrency/security/outbox/worker suites, fuzz, load, CI, and tooling).
+The DB-gated suites cover integration, concurrency, security, outbox, and worker behavior, plus fuzz, load, CI, and tooling.
 
 ```bash
 # Fast/local (DB-free unit + frontend)
@@ -171,8 +172,9 @@ All responses use `{ "data": ..., "meta": ... }`; errors use `{ "error": { "code
 - `/api/v1/stock-returns` (+ `/:id/confirm`, `/:id/reject`, `/:id/cancel`)
 - `/api/v1/monitoring/requests`, `/api/v1/monitoring/returns` — read-only cross-division status; the frontend refreshes every 15 seconds while visible
 - `/api/v1/reports/{dashboard,inventory,stock-movements,department-usage,low-stock,export}`
-- `/api/v1/users`, `/departments`, `/categories`, `/units`
-- `/api/v1/users/:id/{activate,deactivate,history}`, `/api/v1/products/:id/history`
+- `/api/v1/users` — Warehouse Admin only; optional `?role=DEPARTMENT_USER|SUPERVISOR|WAREHOUSE_ADMIN` filter. Create accepts `role` (defaults to `DEPARTMENT_USER`); elevated roles must omit `department_id`
+- `/api/v1/departments`, `/categories`, `/units`
+- `/api/v1/users/:id/{activate,deactivate,history}`, `/api/v1/products/:id/history` — roles are immutable after creation; activation/deactivation requires a reason and the last active warehouse admin is protected
 - `/api/v1/audit` — read-only audit history for Warehouse Admin and Supervisor
 - `/api/v1/notifications`
 
@@ -212,8 +214,6 @@ If the login page does not appear, or login returns a 404/HTML error:
      -H 'Content-Type: application/json' \
      -d '{"email":"warehouse@wms.local","password":"Warehouse123!"}'
    ```
-
-Full diagnosis and an agent-oriented checklist: [docs/PORT_CONFIGURATION.md](docs/PORT_CONFIGURATION.md).
 
 ## Known deviations from the plan
 

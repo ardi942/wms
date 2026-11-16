@@ -28,8 +28,13 @@ func (h *Handler) List(c *gin.Context) {
 		}
 		active = &v
 	}
+	role, rerr := parseRole(c.Query("role"))
+	if rerr != nil {
+		httpx.WriteError(c, rerr)
+		return
+	}
 	items, total, err := h.svc.List(c.Request.Context(), ListFilter{
-		Search: c.Query("search"), IsActive: active, Page: p.Page, PageSize: p.PageSize,
+		Search: c.Query("search"), Role: role, IsActive: active, Page: p.Page, PageSize: p.PageSize,
 	})
 	if err != nil {
 		httpx.WriteError(c, err)

@@ -25,16 +25,18 @@ func NewService(db *gorm.DB, repo *Repository, auditSvc *audit.Service) *Service
 
 type ListFilter struct {
 	Search   string
+	Role     string
 	IsActive *bool
 	Page     int
 	PageSize int
 }
 
 type CreateInput struct {
-	Email        string    `json:"email" binding:"required,email"`
-	FullName     string    `json:"full_name" binding:"required,min=2,max=200"`
-	Password     string    `json:"password" binding:"required,min=8,max=72"`
-	DepartmentID uuid.UUID `json:"department_id" binding:"required"`
+	Email        string     `json:"email" binding:"required,email"`
+	FullName     string     `json:"full_name" binding:"required,min=2,max=200"`
+	Password     string     `json:"password" binding:"required,min=8,max=72"`
+	Role         string     `json:"role"`
+	DepartmentID *uuid.UUID `json:"department_id"`
 }
 
 type UpdateInput struct {
@@ -48,8 +50,18 @@ type StatusInput struct {
 	Reason string `json:"reason"`
 }
 
+func parseRole(raw string) (string, error) {
+	role := strings.ToUpper(strings.TrimSpace(raw))
+	switch role {
+	case "", RoleDepartmentUser, RoleSupervisor, RoleWarehouseAdmin:
+		return role, nil
+	default:
+		return "", httpx.FieldError("role", "must be DEPARTMENT_USER, SUPERVISOR, or WAREHOUSE_ADMIN")
+	}
+}
+
 func (s *Service) List(ctx context.Context, f ListFilter) ([]DTO, int64, error) {
-	users, total, err := s.repo.List(ctx, strings.TrimSpace(f.Search), f.IsActive, f.Page, f.PageSize)
+	users, total, err := s.repo.List(ctx, strings.TrimSpace(f.Search), f.Role, f.IsActive, f.Page, f.PageSize)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -69,19 +81,35 @@ func (s *Service) Create(ctx context.Context, in CreateInput, actor audit.Actor)
 	if len(name) < 2 {
 		return nil, httpx.FieldError("full_name", "must be at least 2 characters")
 	}
+	role, err := parseRole(in.Role)
+	if err != nil {
+		return nil, err
+	}
+	if role == "" {
+		role = RoleDepartmentUser
+	}
+	var departmentID *uuid.UUID
+	if role == RoleDepartmentUser {
+		if in.DepartmentID == nil {
+			return nil, httpx.FieldError("department_id", "department is required for this role")
+		}
+		deptOK, err := s.repo.DepartmentExists(ctx, *in.DepartmentID)
+		if err != nil {
+			return nil, err
+		}
+		if !deptOK {
+			return nil, httpx.FieldError("department_id", "department does not exist")
+		}
+		departmentID = in.DepartmentID
+	} else if in.DepartmentID != nil {
+		return nil, httpx.FieldError("department_id", "must be empty for this role")
+	}
 	exists, err := s.repo.EmailExists(ctx, email, nil)
 	if err != nil {
 		return nil, err
 	}
 	if exists {
 		return nil, httpx.Conflict("DUPLICATE", "email already in use", nil)
-	}
-	deptOK, err := s.repo.DepartmentExists(ctx, in.DepartmentID)
-	if err != nil {
-		return nil, err
-	}
-	if !deptOK {
-		return nil, httpx.FieldError("department_id", "department does not exist")
 	}
 	hash, err := HashPassword(in.Password)
 	if err != nil {
@@ -93,8 +121,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput, actor audit.Actor)
 		Email:        email,
 		PasswordHash: hash,
 		FullName:     name,
-		Role:         RoleDepartmentUser,
-		DepartmentID: &in.DepartmentID,
+		Role:         role,
+		DepartmentID: departmentID,
 		IsActive:     true,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -131,8 +159,8 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput, acto
 		if err != nil {
 			return mapUserError(err)
 		}
-		if current.Role != RoleDepartmentUser {
-			return httpx.Forbidden("only department users can be managed here")
+		if in.DepartmentID != nil && current.Role != RoleDepartmentUser {
+			return httpx.FieldError("department_id", "must be empty for this role")
 		}
 		before := userSnapshot(current)
 		after := audit.CloneMap(before)
@@ -235,18 +263,27 @@ func (s *Service) setActive(ctx context.Context, id uuid.UUID, active bool, reas
 	changed := false
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txRepo := s.repo.WithTx(tx)
+		if err := txRepo.LockStatusChanges(ctx); err != nil {
+			return err
+		}
 		current, err := txRepo.GetByIDForUpdate(ctx, id)
 		if err != nil {
 			return mapUserError(err)
-		}
-		if current.Role != RoleDepartmentUser {
-			return httpx.Forbidden("only department users can be managed here")
 		}
 		if !active && current.ID == actor.ID {
 			return httpx.Conflict("CONFLICT", "you cannot deactivate your own account", nil)
 		}
 		if current.IsActive == active {
 			return nil
+		}
+		if !active && current.Role == RoleWarehouseAdmin {
+			adminIDs, err := txRepo.LockActiveIDsByRole(ctx, RoleWarehouseAdmin)
+			if err != nil {
+				return err
+			}
+			if len(adminIDs) <= 1 {
+				return httpx.Conflict("CONFLICT", "at least one active warehouse admin is required", nil)
+			}
 		}
 		action := audit.ActionUserActivated
 		if !active {
@@ -283,12 +320,8 @@ func (s *Service) setActive(ctx context.Context, id uuid.UUID, active bool, reas
 }
 
 func (s *Service) History(ctx context.Context, id uuid.UUID, page, pageSize int) ([]audit.DTO, int64, error) {
-	u, err := s.repo.GetByID(ctx, id)
-	if err != nil {
+	if _, err := s.repo.GetByID(ctx, id); err != nil {
 		return nil, 0, mapUserError(err)
-	}
-	if u.Role != RoleDepartmentUser {
-		return nil, 0, httpx.Forbidden("only department users can be managed here")
 	}
 	return s.audit.HistoryFor(ctx, audit.EntityUser, id, page, pageSize, false)
 }

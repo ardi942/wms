@@ -14,9 +14,10 @@ export function UserListPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [active, setActive] = useState('')
+  const [role, setRole] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const filters = { search, is_active: active, page, page_size: pageSize }
+  const filters = { search, is_active: active, role, page, page_size: pageSize }
   const users = useQuery({ queryKey: ['users', filters], queryFn: () => userApi.list(filters) })
 
   const columns: Column<User>[] = [
@@ -38,6 +39,12 @@ export function UserListPage() {
       <Card>
         <FilterBar>
           <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder={t('common.searchNameOrEmail')} />
+          <Select className="h-11 w-full sm:h-9 sm:w-44" value={role} onChange={(e) => { setRole(e.target.value); setPage(1) }}>
+            <option value="">{t('common.allRoles')}</option>
+            <option value="DEPARTMENT_USER">{t('role.DEPARTMENT_USER')}</option>
+            <option value="SUPERVISOR">{t('role.SUPERVISOR')}</option>
+            <option value="WAREHOUSE_ADMIN">{t('role.WAREHOUSE_ADMIN')}</option>
+          </Select>
           <Select className="h-11 w-full sm:h-9 sm:w-36" value={active} onChange={(e) => { setActive(e.target.value); setPage(1) }}>
             <option value="">{t('common.anyStatus')}</option>
             <option value="true">{t('common.active')}</option>

@@ -58,8 +58,11 @@ func (r *Repository) SetLastLogin(ctx context.Context, id uuid.UUID, at time.Tim
 	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", id).Update("last_login_at", at).Error
 }
 
-func (r *Repository) List(ctx context.Context, search string, isActive *bool, page, pageSize int) ([]User, int64, error) {
-	q := r.db.WithContext(ctx).Model(&User{}).Where("role = ?", RoleDepartmentUser)
+func (r *Repository) List(ctx context.Context, search, role string, isActive *bool, page, pageSize int) ([]User, int64, error) {
+	q := r.db.WithContext(ctx).Model(&User{})
+	if role != "" {
+		q = q.Where("role = ?", role)
+	}
 	if search != "" {
 		like := "%" + search + "%"
 		q = q.Where("email ILIKE ? OR full_name ILIKE ?", like, like)
@@ -108,6 +111,26 @@ func (r *Repository) EmailExists(ctx context.Context, email string, exceptID *uu
 	var n int64
 	err := q.Count(&n).Error
 	return n > 0, err
+}
+
+func (r *Repository) LockStatusChanges(ctx context.Context) error {
+	return r.db.WithContext(ctx).Exec(`SELECT pg_advisory_xact_lock(hashtext('user.status'))`).Error
+}
+
+func (r *Repository) LockActiveIDsByRole(ctx context.Context, role string) ([]uuid.UUID, error) {
+	var users []User
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("role = ? AND is_active = true", role).
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]uuid.UUID, 0, len(users))
+	for i := range users {
+		ids = append(ids, users[i].ID)
+	}
+	return ids, nil
 }
 
 func (r *Repository) ActiveUserIDsByRoles(ctx context.Context, roles ...string) ([]uuid.UUID, error) {

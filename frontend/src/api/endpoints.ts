@@ -2,6 +2,7 @@ import { api, toQuery } from './client'
 import type {
   AuditEvent,
   Category,
+  CreateUserInput,
   Dashboard,
   Department,
   InventoryBalance,
@@ -21,6 +22,7 @@ import type {
   StockReturn,
   StockReturnList,
   Unit,
+  UpdateUserInput,
   UsageReportRow,
   User,
 } from '../types'
@@ -101,8 +103,8 @@ export const reportApi = {
 export const userApi = {
   list: (params: Record<string, unknown>) => list<User>('/users', params),
   get: (id: string) => api.get<Envelope<User>>(`/users/${id}`),
-  create: (body: unknown) => api.post<Envelope<User>>('/users', body),
-  update: (id: string, body: unknown) => api.patch<Envelope<User>>(`/users/${id}`, body),
+  create: (body: CreateUserInput) => api.post<Envelope<User>>('/users', body),
+  update: (id: string, body: UpdateUserInput) => api.patch<Envelope<User>>(`/users/${id}`, body),
   activate: (id: string, reason: string) => api.post<Envelope<User>>(`/users/${id}/activate`, { reason }),
   deactivate: (id: string, reason: string) => api.post<Envelope<User>>(`/users/${id}/deactivate`, { reason }),
   history: (id: string, params?: Record<string, unknown>) => list<AuditEvent>(`/users/${id}/history`, params),

@@ -29,6 +29,20 @@ export interface User {
   updated_at: string
 }
 
+export interface CreateUserInput {
+  email: string
+  full_name: string
+  password: string
+  role: Role
+  department_id?: string
+}
+
+export interface UpdateUserInput {
+  full_name?: string
+  password?: string
+  department_id?: string
+}
+
 export interface LoginResult {
   token: string
   user: User

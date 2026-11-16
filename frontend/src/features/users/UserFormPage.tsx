@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -12,14 +11,8 @@ import { ErrorState, Loading, PageHeader } from '../../components/common'
 import { useT } from '../../i18n/I18nProvider'
 import { AuditEventTable } from '../audit/AuditEventTable'
 import { UserStatusDialog } from './UserStatusDialog'
-
-const schema = z.object({
-  email: z.string().email('validation.email'),
-  full_name: z.string().min(2, 'validation.nameMin').max(200, 'validation.tooLong'),
-  password: z.string().optional(),
-  department_id: z.string().uuid('validation.selectDepartment'),
-})
-type FormValues = z.infer<typeof schema>
+import { baseSchema, roleOptions, userFormSchema, type UserFormValues } from './userFormSchema'
+import type { UpdateUserInput } from '../../types'
 
 export function UserFormPage() {
   const { id } = useParams()
@@ -37,19 +30,33 @@ export function UserFormPage() {
     enabled: editing,
   })
   const departments = useQuery({ queryKey: ['departments'], queryFn: () => referenceApi.departments() })
-  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { email: '', full_name: '', password: '', department_id: '' },
+  const { register, handleSubmit, reset, setError, setValue, clearErrors, watch, formState: { errors } } = useForm<UserFormValues>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues: { email: '', full_name: '', password: '', role: 'DEPARTMENT_USER', department_id: '' },
   })
+  const role = watch('role')
 
   useEffect(() => {
     if (user.data) {
       const u = user.data.data
-      reset({ email: u.email, full_name: u.full_name, password: '', department_id: u.department?.id ?? '' })
+      reset({
+        email: u.email,
+        full_name: u.full_name,
+        password: '',
+        role: u.role,
+        department_id: u.department?.id ?? '',
+      })
     }
   }, [user.data, reset])
 
-  const onSubmit = async (values: FormValues) => {
+  useEffect(() => {
+    if (role !== 'DEPARTMENT_USER') {
+      setValue('department_id', '')
+      clearErrors('department_id')
+    }
+  }, [role, setValue, clearErrors])
+
+  const onSubmit = async (values: UserFormValues) => {
     if (!editing && (!values.password || values.password.length < 8)) {
       setError('password', { message: 'validation.passwordMin' })
       return
@@ -61,17 +68,19 @@ export function UserFormPage() {
     setSubmitting(true)
     try {
       if (editing) {
-        await userApi.update(id!, {
+        const payload: UpdateUserInput = {
           full_name: values.full_name.trim(),
-          department_id: values.department_id,
           ...(values.password ? { password: values.password } : {}),
-        })
+          ...(values.role === 'DEPARTMENT_USER' ? { department_id: values.department_id } : {}),
+        }
+        await userApi.update(id!, payload)
       } else {
         await userApi.create({
           email: values.email.trim(),
           full_name: values.full_name.trim(),
-          password: values.password,
-          department_id: values.department_id,
+          password: values.password ?? '',
+          role: values.role,
+          ...(values.role === 'DEPARTMENT_USER' ? { department_id: values.department_id } : {}),
         })
       }
       toast.success(editing ? t('toast.userUpdated') : t('toast.userCreated'))
@@ -85,7 +94,7 @@ export function UserFormPage() {
       const message = err instanceof ApiError ? err.message : t('toast.saveFailed')
       if (err instanceof ApiError && err.details) {
         for (const [field, value] of Object.entries(err.details)) {
-          if (field in schema.shape) setError(field as keyof FormValues, { message: String(value) })
+          if (field in baseSchema.shape) setError(field as keyof UserFormValues, { message: String(value) })
         }
       }
       toast.error(message)
@@ -153,17 +162,41 @@ export function UserFormPage() {
             >
               <Input id="full_name" {...register('full_name')} />
             </Field>
-            <Field
-              label={t('fields.department')}
-              hint={t('fields.departmentHint')}
-              htmlFor="department_id"
-              error={errors.department_id?.message}
-            >
-              <Select id="department_id" {...register('department_id')}>
-                <option value="">{t('fields.departmentPlaceholder')}</option>
-                {departments.data?.data.map((d) => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
-              </Select>
-            </Field>
+            {editing ? (
+              <Field
+                label={t('fields.role')}
+                hint={t('fields.roleLockedHint')}
+                htmlFor="role"
+                error={errors.role?.message}
+              >
+                <input id="role" type="hidden" {...register('role')} />
+                <p className="text-sm font-medium text-slate-900">{t(`role.${role}`)}</p>
+              </Field>
+            ) : (
+              <Field
+                label={t('fields.role')}
+                hint={t('fields.roleHint')}
+                htmlFor="role"
+                error={errors.role?.message}
+              >
+                <Select id="role" {...register('role')}>
+                  {roleOptions.map((option) => <option key={option} value={option}>{t(`role.${option}`)}</option>)}
+                </Select>
+              </Field>
+            )}
+            {role === 'DEPARTMENT_USER' && (
+              <Field
+                label={t('fields.department')}
+                hint={t('fields.departmentHint')}
+                htmlFor="department_id"
+                error={errors.department_id?.message}
+              >
+                <Select id="department_id" {...register('department_id')}>
+                  <option value="">{t('fields.departmentPlaceholder')}</option>
+                  {departments.data?.data.map((d) => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
+                </Select>
+              </Field>
+            )}
             <Field
               label={editing ? t('fields.newPassword') : t('fields.password')}
               hint={editing ? t('fields.passwordKeepHint') : t('fields.passwordHint')}
