@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { returnApi } from '../../api/endpoints'
 import { useAuth } from '../../auth/AuthProvider'
 import { Button, Card, Select, Tooltip } from '../../components/ui'
 import { DataTable, FilterBar, Pagination, PageHeader, SearchInput, StatusBadge, type Column } from '../../components/common'
 import { useT } from '../../i18n/I18nProvider'
+import { LIST_POLL_MS } from '../../lib/constants'
 import { formatDateTime, formatQty } from '../../lib/format'
 import type { StockReturnList } from '../../types'
 
@@ -19,7 +20,14 @@ export function ReturnListPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const filters = { status, search, page, page_size: pageSize }
-  const returns = useQuery({ queryKey: ['returns', filters], queryFn: () => returnApi.list(filters) })
+  const returns = useQuery({
+    queryKey: ['returns', filters],
+    queryFn: () => returnApi.list(filters),
+    refetchInterval: LIST_POLL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
+  })
 
   const columns: Column<StockReturnList>[] = [
     { key: 'number', header: t('details.returnNumber'), render: (r) => <span className="font-medium text-brand-700">{r.return_number}</span> },

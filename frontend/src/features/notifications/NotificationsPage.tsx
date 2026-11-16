@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { notificationApi } from '../../api/endpoints'
 import { Button, Card } from '../../components/ui'
 import { DataTable, FilterBar, PageHeader, Pagination, type Column } from '../../components/common'
 import { useT } from '../../i18n/I18nProvider'
+import { NOTIFICATIONS_POLL_MS } from '../../lib/constants'
 import { formatDateTime } from '../../lib/format'
 import type { Notification } from '../../types'
 
@@ -16,7 +17,14 @@ export function NotificationsPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const filters = { unread_only: unreadOnly || undefined, page, page_size: pageSize }
-  const notifications = useQuery({ queryKey: ['notifications', filters], queryFn: () => notificationApi.list(filters) })
+  const notifications = useQuery({
+    queryKey: ['notifications', filters],
+    queryFn: () => notificationApi.list(filters),
+    refetchInterval: NOTIFICATIONS_POLL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
+  })
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['notifications'] })

@@ -7,6 +7,8 @@ export const ROLE_DEPARTMENT: Role = 'DEPARTMENT_USER'
 export const PAGE_SIZES = [10, 20, 50]
 
 export const MONITORING_POLL_MS = 15_000
+export const LIST_POLL_MS = MONITORING_POLL_MS
+export const NOTIFICATIONS_POLL_MS = 30_000
 
 export const navItems: Array<{ to: string; key: string; roles: Role[] }> = [
   { to: '/dashboard', key: 'nav.dashboard', roles: ['SUPERVISOR', 'WAREHOUSE_ADMIN', 'DEPARTMENT_USER'] },

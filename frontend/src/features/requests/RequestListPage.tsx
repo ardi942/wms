@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { requestApi } from '../../api/endpoints'
 import { useAuth } from '../../auth/AuthProvider'
 import { Button, Card, Select, Tooltip } from '../../components/ui'
 import { DataTable, FilterBar, Pagination, PageHeader, SearchInput, StatusBadge, type Column } from '../../components/common'
 import { useT } from '../../i18n/I18nProvider'
+import { LIST_POLL_MS } from '../../lib/constants'
 import { formatDateTime, formatQty } from '../../lib/format'
 import type { StockRequestList } from '../../types'
 
@@ -20,7 +21,14 @@ export function RequestListPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const filters = { status, search, page, page_size: pageSize }
-  const requests = useQuery({ queryKey: ['requests', filters], queryFn: () => requestApi.list(filters) })
+  const requests = useQuery({
+    queryKey: ['requests', filters],
+    queryFn: () => requestApi.list(filters),
+    refetchInterval: LIST_POLL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
+  })
 
   const columns: Column<StockRequestList>[] = [
     { key: 'number', header: t('details.requestNumber'), render: (r) => <span className="font-medium text-brand-700">{r.request_number}</span> },
