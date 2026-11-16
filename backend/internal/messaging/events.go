@@ -8,17 +8,17 @@ import (
 )
 
 const (
-	EventStockReceived   = "stock.received"
-	EventStockAdjusted   = "stock.adjusted"
-	EventStockIssued     = "stock.issued"
-	EventRequestCreated  = "request.created"
+	EventStockReceived    = "stock.received"
+	EventStockAdjusted    = "stock.adjusted"
+	EventStockIssued      = "stock.issued"
+	EventRequestCreated   = "request.created"
 	EventRequestFulfilled = "request.fulfilled"
-	EventRequestRejected = "request.rejected"
-	EventRequestCanceled = "request.cancelled"
-	EventReturnCreated   = "return.created"
-	EventReturnConfirmed = "return.confirmed"
-	EventReturnRejected  = "return.rejected"
-	EventReturnCanceled  = "return.cancelled"
+	EventRequestRejected  = "request.rejected"
+	EventRequestCanceled  = "request.cancelled"
+	EventReturnCreated    = "return.created"
+	EventReturnConfirmed  = "return.confirmed"
+	EventReturnRejected   = "return.rejected"
+	EventReturnCanceled   = "return.cancelled"
 )
 
 type Envelope struct {

@@ -1,9 +1,9 @@
 package httpx
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,8 +14,8 @@ type Pagination struct {
 }
 
 type Meta struct {
-	Page       int  `json:"page"`
-	PageSize   int  `json:"page_size"`
+	Page       int   `json:"page"`
+	PageSize   int   `json:"page_size"`
 	Total      int64 `json:"total"`
 	TotalPages int   `json:"total_pages"`
 }
@@ -52,27 +52,40 @@ func NewMeta(p Pagination, total int64) Meta {
 func ParseDateRange(c *gin.Context) (from, to string, err *AppError) {
 	from = c.Query("date_from")
 	to = c.Query("date_to")
-	for _, v := range []string{from, to} {
-		if v == "" {
+	var fromN, toN int64
+	for _, pair := range []struct {
+		name  string
+		value string
+		out   *int64
+	}{{"date_from", from, &fromN}, {"date_to", to, &toN}} {
+		if pair.value == "" {
 			continue
 		}
-		if len(v) != 10 || strings.Count(v, "-") != 2 {
+		if len(pair.value) != 10 || strings.Count(pair.value, "-") != 2 {
 			return "", "", Validation("validation failed", map[string]string{"date": "expected YYYY-MM-DD"})
 		}
-		if _, e := parseDate(v); e != nil {
+		n, e := parseDate(pair.value)
+		if e != nil {
 			return "", "", Validation("validation failed", map[string]string{"date": "expected YYYY-MM-DD"})
 		}
+		*pair.out = n
+	}
+	if from != "" && to != "" && fromN > toN {
+		return "", "", Validation("validation failed", map[string]string{"date": "date_from must be before or equal to date_to"})
 	}
 	return from, to, nil
 }
 
 func parseDate(v string) (int64, error) {
-	var y, m, d int
-	if _, err := fmt.Sscanf(v, "%d-%d-%d", &y, &m, &d); err != nil {
+	parsed, err := time.Parse("2006-01-02", v)
+	if err != nil {
 		return 0, err
 	}
-	if m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 {
-		return 0, fmt.Errorf("invalid date")
+	if parsed.Format("2006-01-02") != v {
+		return 0, strconv.ErrSyntax
 	}
-	return int64(y*10000 + m*100 + d), nil
+	if parsed.Year() < 1900 {
+		return 0, strconv.ErrSyntax
+	}
+	return int64(parsed.Year()*10000 + int(parsed.Month())*100 + parsed.Day()), nil
 }

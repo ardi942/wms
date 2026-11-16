@@ -20,9 +20,10 @@ type Replay struct {
 }
 
 type row struct {
-	RequestHash string  `gorm:"column:request_hash"`
-	StatusCode  *int    `gorm:"column:status_code"`
-	Body        *string `gorm:"column:body"`
+	RequestHash string    `gorm:"column:request_hash"`
+	UserID      uuid.UUID `gorm:"column:user_id"`
+	StatusCode  *int      `gorm:"column:status_code"`
+	Body        *string   `gorm:"column:body"`
 }
 
 // Reserve inserts the key if absent. It returns a replay when the same key
@@ -42,11 +43,14 @@ func (s *Store) Reserve(ctx context.Context, operation, key string, userID uuid.
 	}
 	var r row
 	err := s.db.WithContext(ctx).Raw(
-		`SELECT request_hash, status_code, response_body::text AS body
+		`SELECT request_hash, user_id, status_code, response_body::text AS body
 		 FROM idempotency_keys WHERE operation = ? AND key = ?`, operation, key,
 	).Scan(&r).Error
 	if err != nil {
 		return nil, err
+	}
+	if r.UserID != userID {
+		return nil, httpx.Conflict("IDEMPOTENCY_KEY_REUSED", "idempotency key was used by a different user", nil)
 	}
 	if r.RequestHash != hash {
 		return nil, httpx.Conflict("IDEMPOTENCY_KEY_REUSED", "idempotency key was used with a different request body", nil)

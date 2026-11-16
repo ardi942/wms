@@ -20,13 +20,13 @@ type InventoryRow struct {
 }
 
 type UsageRow struct {
-	Department   string     `json:"department"`
-	SKU          string     `json:"sku"`
-	Product      string     `json:"product"`
-	IssuedUnits  int        `json:"issued_units"`
-	ReturnedUnits int       `json:"returned_units"`
-	NetUsed      int        `json:"net_used"`
-	LastIssuedAt *time.Time `json:"last_issued_at"`
+	Department    string     `json:"department"`
+	SKU           string     `json:"sku"`
+	Product       string     `json:"product"`
+	IssuedUnits   int        `json:"issued_units"`
+	ReturnedUnits int        `json:"returned_units"`
+	NetUsed       int        `json:"net_used"`
+	LastIssuedAt  *time.Time `json:"last_issued_at"`
 }
 
 type LowStockRow struct {

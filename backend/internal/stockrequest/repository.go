@@ -208,8 +208,8 @@ func (r *Repository) GetDetail(ctx context.Context, id uuid.UUID) (*DTO, error) 
 
 	dto := &DTO{
 		ID: h.ID, RequestNumber: h.RequestNumber, Status: h.Status, Purpose: h.Purpose,
-		Department:  DepartmentRef{ID: h.DepartmentID, Code: h.DeptCode, Name: h.DeptName},
-		RequestedBy: ActorRef{ID: h.RequestedBy, FullName: h.RequesterName},
+		Department:      DepartmentRef{ID: h.DepartmentID, Code: h.DeptCode, Name: h.DeptName},
+		RequestedBy:     ActorRef{ID: h.RequestedBy, FullName: h.RequesterName},
 		RejectionReason: h.RejectionReason, ProcessedAt: h.ProcessedAt,
 		CreatedAt: h.CreatedAt, UpdatedAt: h.UpdatedAt,
 		Items: make([]ItemDTO, 0, len(items)),

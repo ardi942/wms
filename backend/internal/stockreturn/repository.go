@@ -132,7 +132,7 @@ func (r *Repository) List(ctx context.Context, f Filter) ([]ListDTO, int64, erro
 			ID: x.ID, ReturnNumber: x.ReturnNumber, Status: x.Status, Reason: x.Reason,
 			Department:  DepartmentRef{ID: x.DepartmentID, Code: x.DeptCode, Name: x.DeptName},
 			RequestedBy: ActorRef{ID: x.RequestedBy, FullName: x.RequesterName},
-			ItemCount: x.ItemCount, TotalRequested: x.TotalRequested, TotalAccepted: x.TotalAccepted,
+			ItemCount:   x.ItemCount, TotalRequested: x.TotalRequested, TotalAccepted: x.TotalAccepted,
 			CreatedAt: x.CreatedAt, UpdatedAt: x.UpdatedAt,
 		})
 	}
@@ -199,8 +199,8 @@ func (r *Repository) GetDetail(ctx context.Context, id uuid.UUID) (*DTO, error) 
 
 	dto := &DTO{
 		ID: h.ID, ReturnNumber: h.ReturnNumber, Status: h.Status, Reason: h.Reason,
-		Department:  DepartmentRef{ID: h.DepartmentID, Code: h.DeptCode, Name: h.DeptName},
-		RequestedBy: ActorRef{ID: h.RequestedBy, FullName: h.RequesterName},
+		Department:      DepartmentRef{ID: h.DepartmentID, Code: h.DeptCode, Name: h.DeptName},
+		RequestedBy:     ActorRef{ID: h.RequestedBy, FullName: h.RequesterName},
 		RejectionReason: h.RejectionReason, ProcessedAt: h.ProcessedAt,
 		CreatedAt: h.CreatedAt, UpdatedAt: h.UpdatedAt,
 		Items: make([]ItemDTO, 0, len(items)),

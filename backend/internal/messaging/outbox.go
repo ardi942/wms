@@ -21,15 +21,19 @@ type OutboxEvent struct {
 	CreatedAt     time.Time
 }
 
+type Publisher interface {
+	Publish(ctx context.Context, env Envelope) error
+}
+
 type Relay struct {
 	db       *gorm.DB
-	pub      *RabbitPublisher
+	pub      Publisher
 	log      *slog.Logger
 	interval time.Duration
 	batch    int
 }
 
-func NewRelay(db *gorm.DB, pub *RabbitPublisher, log *slog.Logger, interval time.Duration) *Relay {
+func NewRelay(db *gorm.DB, pub Publisher, log *slog.Logger, interval time.Duration) *Relay {
 	return &Relay{db: db, pub: pub, log: log, interval: interval, batch: 50}
 }
 
@@ -53,6 +57,10 @@ func (r *Relay) Run(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (r *Relay) PublishBatch(ctx context.Context) (int, error) {
+	return r.publishBatch(ctx)
 }
 
 func (r *Relay) publishBatch(ctx context.Context) (int, error) {

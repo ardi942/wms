@@ -74,19 +74,19 @@ type ItemDTO struct {
 }
 
 type DTO struct {
-	ID              uuid.UUID      `json:"id"`
-	RequestNumber   string         `json:"request_number"`
-	Status          string         `json:"status"`
-	Department      DepartmentRef  `json:"department"`
-	RequestedBy     ActorRef       `json:"requested_by"`
-	Purpose         string         `json:"purpose"`
-	RejectionReason *string        `json:"rejection_reason"`
-	ProcessedBy     *ActorRef      `json:"processed_by"`
-	ProcessedAt     *time.Time     `json:"processed_at"`
-	Items           []ItemDTO      `json:"items"`
-	AllowedActions  []string       `json:"allowed_actions"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID              uuid.UUID     `json:"id"`
+	RequestNumber   string        `json:"request_number"`
+	Status          string        `json:"status"`
+	Department      DepartmentRef `json:"department"`
+	RequestedBy     ActorRef      `json:"requested_by"`
+	Purpose         string        `json:"purpose"`
+	RejectionReason *string       `json:"rejection_reason"`
+	ProcessedBy     *ActorRef     `json:"processed_by"`
+	ProcessedAt     *time.Time    `json:"processed_at"`
+	Items           []ItemDTO     `json:"items"`
+	AllowedActions  []string      `json:"allowed_actions"`
+	CreatedAt       time.Time     `json:"created_at"`
+	UpdatedAt       time.Time     `json:"updated_at"`
 }
 
 type ListDTO struct {

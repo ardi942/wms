@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -21,15 +22,25 @@ const (
 func BodyHashAndIdempotencyKey() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
-		if len(key) < 8 || len(key) > 128 {
+		if len(key) < 8 || !validHeaderValue(key, 128) {
 			httpx.WriteError(c, httpx.Validation("validation failed", map[string]string{
-				"Idempotency-Key": "header is required and must be 8-128 characters",
+				"Idempotency-Key": "header is required and must be 8-128 characters using letters, digits, dot, dash, underscore or colon",
 			}))
 			return
 		}
 		var body []byte
 		if c.Request.Body != nil {
-			body, _ = io.ReadAll(io.LimitReader(c.Request.Body, 2<<20))
+			var err error
+			body, err = io.ReadAll(c.Request.Body)
+			if err != nil {
+				var maxErr *http.MaxBytesError
+				if errors.As(err, &maxErr) {
+					httpx.WriteError(c, httpx.Err(http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body is too large"))
+					return
+				}
+				httpx.WriteError(c, httpx.Validation("invalid request body", nil))
+				return
+			}
 			c.Request.Body = io.NopCloser(bytes.NewReader(body))
 		}
 		sum := sha256.Sum256(body)

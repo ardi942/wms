@@ -18,8 +18,8 @@ func NewRepository(db *gorm.DB, warehouseID uuid.UUID) *Repository {
 	return &Repository{db: db, warehouseID: warehouseID}
 }
 
-func (r *Repository) DB() *gorm.DB                  { return r.db }
-func (r *Repository) WarehouseID() uuid.UUID        { return r.warehouseID }
+func (r *Repository) DB() *gorm.DB           { return r.db }
+func (r *Repository) WarehouseID() uuid.UUID { return r.warehouseID }
 
 type BalanceFilter struct {
 	Search     string

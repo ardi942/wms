@@ -19,7 +19,7 @@ func TestUpdateRejectsDirectStatusChange(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	var appErr *httpx.AppError
-	if !errors.As(err, &appErr) || appErr.Code != "VALIDATION_ERROR" {
+	if !errors.As(err, &appErr) || appErr.Code != "VALIDATION" {
 		t.Fatalf("expected validation AppError, got %#v", err)
 	}
 	if _, ok := appErr.Details.(map[string]string)["is_active"]; !ok {
@@ -34,7 +34,7 @@ func TestStatusChangeRequiresReason(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	var appErr *httpx.AppError
-	if !errors.As(err, &appErr) || appErr.Code != "VALIDATION_ERROR" {
+	if !errors.As(err, &appErr) || appErr.Code != "VALIDATION" {
 		t.Fatalf("expected validation AppError, got %#v", err)
 	}
 	if _, ok := appErr.Details.(map[string]string)["reason"]; !ok {

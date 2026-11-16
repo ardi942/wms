@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type AppError struct {
@@ -20,7 +22,7 @@ func Err(status int, code, message string) *AppError {
 }
 
 func Validation(message string, details any) *AppError {
-	return &AppError{HTTPStatus: http.StatusBadRequest, Code: "VALIDATION_ERROR", Message: message, Details: details}
+	return &AppError{HTTPStatus: http.StatusUnprocessableEntity, Code: "VALIDATION", Message: message, Details: details}
 }
 
 func Unauthorized(message string) *AppError {
@@ -48,7 +50,15 @@ func AsAppError(err error) *AppError {
 	if errors.As(err, &ae) {
 		return ae
 	}
+	if IsUniqueViolation(err) {
+		return Conflict("DUPLICATE", "resource already exists", nil)
+	}
 	return Internal(err)
+}
+
+func IsUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func FieldError(field, message string) *AppError {

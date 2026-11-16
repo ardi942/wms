@@ -213,9 +213,9 @@ func (s *Service) Fulfill(ctx context.Context, requestID uuid.UUID, in FulfillIn
 			itemMap[items[i].ID] = &items[i]
 		}
 		type pendingLine struct {
-			item     *Item
-			issued   int
-			product  *inventory.ProductInfo
+			item    *Item
+			issued  int
+			product *inventory.ProductInfo
 		}
 		lines := make([]pendingLine, 0, len(lineByItem))
 		for itemID, qty := range lineByItem {

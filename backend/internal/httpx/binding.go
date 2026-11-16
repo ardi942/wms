@@ -3,6 +3,7 @@ package httpx
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,10 @@ import (
 
 func BindJSON(c *gin.Context, dst any) *AppError {
 	if err := c.ShouldBindJSON(dst); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			return Err(http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body is too large")
+		}
 		var verrs validator.ValidationErrors
 		if errors.As(err, &verrs) {
 			details := map[string]string{}

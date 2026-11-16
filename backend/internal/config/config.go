@@ -9,36 +9,48 @@ import (
 )
 
 type Config struct {
-	Port               string
-	DatabaseURL        string
-	JWTSecret          string
-	JWTTTL             time.Duration
-	RedisAddr          string
-	RedisPassword      string
-	RabbitMQURL        string
-	CORSOrigins        []string
-	LogLevel           string
-	WorkerConcurrency  int
-	OutboxPollInterval time.Duration
-	MigrationsPath     string
-	SeedDemo           bool
+	Port                    string
+	DatabaseURL             string
+	JWTSecret               string
+	JWTTTL                  time.Duration
+	RedisAddr               string
+	RedisPassword           string
+	RabbitMQURL             string
+	CORSOrigins             []string
+	LogLevel                string
+	WorkerConcurrency       int
+	OutboxPollInterval      time.Duration
+	MigrationsPath          string
+	SeedDemo                bool
+	MaxRequestBodyBytes     int64
+	TrustedProxies          []string
+	RateLimitEnabled        bool
+	RateLimitLoginPerMinute int
+	RateLimitAPIPerMinute   int
+	RateLimitMutationPerMin int
 }
 
 func Load() (*Config, error) {
 	c := &Config{
-		Port:               env("API_PORT", "8080"),
-		DatabaseURL:        env("DATABASE_URL", "postgres://wms:wms@localhost:5432/wms?sslmode=disable"),
-		JWTSecret:          env("JWT_SECRET", ""),
-		RedisAddr:          env("REDIS_ADDR", "localhost:6379"),
-		RedisPassword:      env("REDIS_PASSWORD", ""),
-		RabbitMQURL:        env("RABBITMQ_URL", "amqp://wms:wms@localhost:5672/"),
-		LogLevel:           env("LOG_LEVEL", "info"),
-		MigrationsPath:     env("MIGRATIONS_PATH", "./migrations"),
-		WorkerConcurrency:  envInt("WORKER_CONCURRENCY", 8),
-		OutboxPollInterval: envDuration("OUTBOX_POLL_INTERVAL", time.Second),
-		JWTTTL:             envDuration("JWT_TTL", 12*time.Hour),
-		CORSOrigins:        splitCSV(env("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")),
-		SeedDemo:           envBool("SEED_DEMO", true),
+		Port:                    env("API_PORT", "8080"),
+		DatabaseURL:             env("DATABASE_URL", "postgres://wms:wms@localhost:5432/wms?sslmode=disable"),
+		JWTSecret:               env("JWT_SECRET", ""),
+		RedisAddr:               env("REDIS_ADDR", "localhost:6379"),
+		RedisPassword:           env("REDIS_PASSWORD", ""),
+		RabbitMQURL:             env("RABBITMQ_URL", "amqp://wms:wms@localhost:5672/"),
+		LogLevel:                env("LOG_LEVEL", "info"),
+		MigrationsPath:          env("MIGRATIONS_PATH", "./migrations"),
+		WorkerConcurrency:       envInt("WORKER_CONCURRENCY", 8),
+		OutboxPollInterval:      envDuration("OUTBOX_POLL_INTERVAL", time.Second),
+		JWTTTL:                  envDuration("JWT_TTL", 12*time.Hour),
+		CORSOrigins:             splitCSV(env("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")),
+		SeedDemo:                envBool("SEED_DEMO", true),
+		MaxRequestBodyBytes:     envInt64("MAX_REQUEST_BODY_BYTES", 1<<20),
+		TrustedProxies:          splitCSV(env("TRUSTED_PROXIES", "")),
+		RateLimitEnabled:        envBool("RATE_LIMIT_ENABLED", true),
+		RateLimitLoginPerMinute: envInt("RATE_LIMIT_LOGIN_PER_MINUTE", 30),
+		RateLimitAPIPerMinute:   envInt("RATE_LIMIT_API_PER_MINUTE", 600),
+		RateLimitMutationPerMin: envInt("RATE_LIMIT_MUTATION_PER_MINUTE", 120),
 	}
 	if strings.TrimSpace(c.DatabaseURL) == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
@@ -49,6 +61,12 @@ func Load() (*Config, error) {
 	if c.WorkerConcurrency < 1 || c.WorkerConcurrency > 64 {
 		return nil, fmt.Errorf("WORKER_CONCURRENCY must be between 1 and 64")
 	}
+	if c.MaxRequestBodyBytes < 1024 || c.MaxRequestBodyBytes > 16<<20 {
+		return nil, fmt.Errorf("MAX_REQUEST_BODY_BYTES must be between 1024 and 16777216")
+	}
+	if c.RateLimitLoginPerMinute < 1 || c.RateLimitAPIPerMinute < 1 || c.RateLimitMutationPerMin < 1 {
+		return nil, fmt.Errorf("rate limit values must be positive")
+	}
 	return c, nil
 }
 
@@ -57,6 +75,18 @@ func env(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func envInt64(key string, def int64) int64 {
+	v, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(v) == "" {
+		return def
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return def
+	}
+	return n
 }
 
 func envInt(key string, def int) int {

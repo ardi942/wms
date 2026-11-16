@@ -10,6 +10,8 @@ import (
 	"wms/backend/internal/user"
 )
 
+const dummyPasswordHash = "$2a$12$vb.wSZd8uWD5QvOU95dFt.wbzbVdQvFPxsgiY6dPiBED3ns1NaUUC"
+
 type Service struct {
 	users *user.Repository
 	jwt   *JWT
@@ -28,11 +30,13 @@ func (s *Service) Login(ctx context.Context, email, password string) (*LoginResu
 	u, err := s.users.GetByEmail(ctx, normalizeEmail(email))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			_ = VerifyPassword(dummyPasswordHash, password)
 			return nil, httpx.Unauthorized("invalid email or password")
 		}
 		return nil, err
 	}
-	if !u.IsActive || !VerifyPassword(u.PasswordHash, password) {
+	validPassword := VerifyPassword(u.PasswordHash, password)
+	if !u.IsActive || !validPassword {
 		return nil, httpx.Unauthorized("invalid email or password")
 	}
 	token, err := s.jwt.Sign(u)

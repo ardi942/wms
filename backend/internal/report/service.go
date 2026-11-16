@@ -213,16 +213,16 @@ func (s *Service) supervisorDashboard(ctx context.Context) (any, error) {
 		return nil, err
 	}
 	return map[string]any{
-		"total_products":       products,
-		"total_stock_units":    units,
-		"inventory_value":      fmt.Sprintf("%.2f", value),
+		"total_products":        products,
+		"total_stock_units":     units,
+		"inventory_value":       fmt.Sprintf("%.2f", value),
 		"products_without_cost": withoutCost,
-		"low_stock_count":      lowCount,
-		"pending_requests":     pending,
-		"incoming":             map[string]any{"today_units": inTodayUnits, "last_7d_units": inWeekUnits},
-		"outgoing":             map[string]any{"today_units": outTodayUnits, "last_7d_units": outWeekUnits},
-		"recent_movements":     recent,
-		"movement_chart":       chart,
+		"low_stock_count":       lowCount,
+		"pending_requests":      pending,
+		"incoming":              map[string]any{"today_units": inTodayUnits, "last_7d_units": inWeekUnits},
+		"outgoing":              map[string]any{"today_units": outTodayUnits, "last_7d_units": outWeekUnits},
+		"recent_movements":      recent,
+		"movement_chart":        chart,
 	}, nil
 }
 

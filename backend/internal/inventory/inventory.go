@@ -81,16 +81,16 @@ type MovementDTO struct {
 }
 
 type InventoryDTO struct {
-	ProductID    uuid.UUID  `json:"product_id"`
-	SKU          string     `json:"sku"`
-	Name         string     `json:"name"`
-	Category     string     `json:"category"`
-	Unit         string     `json:"unit"`
-	Quantity     int        `json:"quantity"`
-	MinStock     int        `json:"min_stock"`
-	IsLowStock   bool       `json:"is_low_stock"`
-	UnitCost     *float64   `json:"unit_cost"`
-	StockValue   float64    `json:"stock_value"`
+	ProductID  uuid.UUID `json:"product_id"`
+	SKU        string    `json:"sku"`
+	Name       string    `json:"name"`
+	Category   string    `json:"category"`
+	Unit       string    `json:"unit"`
+	Quantity   int       `json:"quantity"`
+	MinStock   int       `json:"min_stock"`
+	IsLowStock bool      `json:"is_low_stock"`
+	UnitCost   *float64  `json:"unit_cost"`
+	StockValue float64   `json:"stock_value"`
 }
 
 type ProductInfo struct {

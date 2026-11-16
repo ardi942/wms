@@ -122,16 +122,25 @@ docs/
 
 ## Tests
 
-```bash
-# Backend unit tests
-cd backend && go test ./...
-go vet ./...
+See `docs/testing.md` for full details (DB-gated integration/concurrency/security/outbox/worker suites, fuzz, load, CI, and tooling).
 
-# Frontend tests and build
-cd frontend
-npm run lint
-npm test
-npm run build
+```bash
+# Fast/local (DB-free unit + frontend)
+make test
+
+# Backend static/unit checks
+cd backend && go vet ./... && go test -short ./...
+
+# DB-backed suites (requires TEST_DATABASE_URL)
+cd backend && TEST_DATABASE_URL='postgres://wms:wms@localhost:5432/wms?sslmode=disable' \
+  go test ./test/api ./test/security ./test/outbox ./test/worker ./test/concurrency -count=1
+
+# Concurrency/race proof
+make test-race
+
+# Tooling (install tools locally; CI runs them)
+make lint-backend
+make audit
 ```
 
 Playwright E2E requires a running stack and a browser. On a host without browser system libraries, use the official Playwright image:

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -288,15 +289,43 @@ func writeCSV(c *gin.Context, name string, headers []string, rows [][]string) {
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s.csv"`, name, time.Now().UTC().Format("20060102")))
 	c.Status(http.StatusOK)
 	w := csv.NewWriter(c.Writer)
-	if err := w.Write(headers); err != nil {
+	if err := w.Write(sanitizeCSVFields(headers)); err != nil {
 		return
 	}
 	for _, row := range rows {
-		if err := w.Write(row); err != nil {
+		if err := w.Write(sanitizeCSVFields(row)); err != nil {
 			return
 		}
 	}
 	w.Flush()
+}
+
+func sanitizeCSVFields(fields []string) []string {
+	out := make([]string, len(fields))
+	for i, field := range fields {
+		out[i] = sanitizeCSVField(field)
+	}
+	return out
+}
+
+// sanitizeCSVField prevents spreadsheet formula injection while preserving
+// legitimate numeric values such as negative quantity deltas.
+func sanitizeCSVField(value string) string {
+	trimmedSpaces := strings.TrimLeft(value, " ")
+	if trimmedSpaces == "" {
+		return value
+	}
+	switch trimmedSpaces[0] {
+	case '=', '+', '@', '\t', '\r', '\n':
+		return "'" + value
+	case '-':
+		if _, err := strconv.ParseFloat(strings.TrimSpace(trimmedSpaces), 64); err == nil {
+			return value
+		}
+		return "'" + value
+	default:
+		return value
+	}
 }
 
 func formatCost(v *float64) string {
